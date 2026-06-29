@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 
 type Player={id:string;first_name:string;last_name:string;phone:string;player_code:string;team:string;flag:string;points:number;wins:number;losses:number;goals_for:number;goals_against:number};
-type Match={id:string;round:string;kickoff:string;team_a:string;flag_a:string;team_b:string;flag_b:string;score_a:number;score_b:number;winner:string|null;status:string};
+type Match={id:string;round:string;kickoff:string;team_a:string;flag_a:string;team_b:string;flag_b:string;score_a:number;score_b:number;winner:string|null;status:string;minute?:number;highlights_url?:string};
 type Pick={id:string;participant_id:string;match_id:string;selected_team:string};
 
 const ADMIN_PHONE='7209880163';
@@ -135,9 +135,9 @@ export default function Home(){
   await load();
  }
 
- async function updateMatch(m:Match,a:number,b:number,st:string){
+ async function updateMatch(m:Match,a:number,b:number,st:string,minute:number=0,highlights_url:string=''){
   const winner=a===b?null:(a>b?m.team_a:m.team_b);
-  const {error}=await supabase.from('wc_matches').update({score_a:a,score_b:b,status:st,winner,updated_at:new Date().toISOString()}).eq('id',m.id);
+  const {error}=await supabase.from('wc_matches').update({score_a:a,score_b:b,status:st,winner,minute,highlights_url,updated_at:new Date().toISOString()}).eq('id',m.id);
   if(error){setStatus(error.message);return}
   await sendSMS(players.map(p=>p.phone),`Family World Cup update: ${m.flag_a} ${m.team_a} ${a}-${b} ${m.flag_b} ${m.team_b}${winner?`. Winner: ${winner}`:''}`);
   await recalc();
@@ -181,6 +181,6 @@ export default function Home(){
  </main>
 }
 
-function ScoreCard({m,picks=[]}:{m:Match;picks?:Pick[]}){const [a,b]=teamChance(m.team_a,m.team_b);const total=picks.filter(p=>p.match_id===m.id).length;const pa=pct(picks.filter(p=>p.match_id===m.id&&p.selected_team===m.team_a).length,total);const pb=pct(picks.filter(p=>p.match_id===m.id&&p.selected_team===m.team_b).length,total);return <div className="match"><div className="row"><b>{m.round}</b><span className="badge">{m.status}</span></div><p className="muted">{m.kickoff}</p><div className="team"><span>{m.flag_a} {m.team_a}</span><b>{m.score_a}</b></div><div className="meter"><i style={{width:`${a}%`}}></i></div><p className="muted">Win chance: {m.team_a} {a}% • Family picks {pa}%</p><div className="team"><span>{m.flag_b} {m.team_b}</span><b>{m.score_b}</b></div><div className="meter"><i style={{width:`${b}%`}}></i></div><p className="muted">Win chance: {m.team_b} {b}% • Family picks {pb}%</p>{m.winner&&<p className="winnerText">Winner: {m.winner}</p>}</div>}
+function ScoreCard({m,picks=[]}:{m:Match;picks?:Pick[]}){const [a,b]=teamChance(m.team_a,m.team_b);const total=picks.filter(p=>p.match_id===m.id).length;const pa=pct(picks.filter(p=>p.match_id===m.id&&p.selected_team===m.team_a).length,total);const pb=pct(picks.filter(p=>p.match_id===m.id&&p.selected_team===m.team_b).length,total);return <div className="match"><div className="row"><b>{m.round}</b><span className="badge">{m.status}</span></div><p className="muted">{m.kickoff}</p><div className="team"><span>{m.flag_a} {m.team_a}</span><b>{m.score_a}</b></div><div className="meter"><i style={{width:`${a}%`}}></i></div><p className="muted">Win chance: {m.team_a} {a}% • Family picks {pa}%</p><div className="team"><span>{m.flag_b} {m.team_b}</span><b>{m.score_b}</b></div><div className="meter"><i style={{width:`${b}%`}}></i></div><p className="muted">Win chance: {m.team_b} {b}% • Family picks {pb}%</p>{m.status==='live'&&<p className="winnerText">⏱ {m.minute||0}'</p>}{m.highlights_url&&<p><a className="highlightLink" href={m.highlights_url} target="_blank">🎥 Watch Highlights</a></p>}{m.winner&&<p className="winnerText">Winner: {m.winner}</p>}</div>}
 
-function AdminMatch({m,save}:{m:Match;save:(m:Match,a:number,b:number,s:string)=>void}){const[a,setA]=useState(m.score_a||0);const[b,setB]=useState(m.score_b||0);const[s,setS]=useState(m.status||'scheduled');useEffect(()=>{setA(m.score_a||0);setB(m.score_b||0);setS(m.status||'scheduled')},[m]);return <div className="item adminItem"><span>{m.flag_a} {m.team_a} vs {m.flag_b} {m.team_b}<br/><span className="muted">{m.kickoff}</span></span><div className="statGrid"><input type="number" value={a} onChange={e=>setA(Number(e.target.value))}/><input type="number" value={b} onChange={e=>setB(Number(e.target.value))}/><select value={s} onChange={e=>setS(e.target.value)}><option value="scheduled">Scheduled</option><option value="live">Live</option><option value="final">Final</option></select><button onClick={()=>save(m,a,b,s)}>Update</button></div></div>}
+function AdminMatch({m,save}:{m:Match;save:(m:Match,a:number,b:number,s:string,minute:number,highlights_url:string)=>void}){const[a,setA]=useState(m.score_a||0);const[b,setB]=useState(m.score_b||0);const[s,setS]=useState(m.status||'scheduled');const[min,setMin]=useState(m.minute||0);const[hl,setHl]=useState(m.highlights_url||'');useEffect(()=>{setA(m.score_a||0);setB(m.score_b||0);setS(m.status||'scheduled');setMin(m.minute||0);setHl(m.highlights_url||'')},[m]);return <div className="item adminItem"><span>{m.flag_a} {m.team_a} vs {m.flag_b} {m.team_b}<br/><span className="muted">{m.kickoff}</span></span><div className="statGrid"><input type="number" value={a} onChange={e=>setA(Number(e.target.value))}/><input type="number" value={b} onChange={e=>setB(Number(e.target.value))}/><input type="number" placeholder="Minute" value={min} onChange={e=>setMin(Number(e.target.value))}/><select value={s} onChange={e=>setS(e.target.value)}><option value="scheduled">Scheduled</option><option value="live">Live</option><option value="final">Final</option></select><input placeholder="Highlights URL" value={hl} onChange={e=>setHl(e.target.value)}/><button onClick={()=>save(m,a,b,s,min,hl)}>Update</button></div></div>}
