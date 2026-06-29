@@ -71,7 +71,19 @@ export default function Home(){
  .on('postgres_changes',{event:'*',schema:'public',table:'participants'},load)
  .on('postgres_changes',{event:'*',schema:'public',table:'wc_matches'},load)
  .on('postgres_changes',{event:'*',schema:'public',table:'match_picks'},load)
- .subscribe();return()=>{supabase.removeChannel(ch)}},[]);
+ .subscribe();
+
+ const timer=setInterval(load,3000);
+ const onFocus=()=>load();
+ window.addEventListener('focus',onFocus);
+ document.addEventListener('visibilitychange',()=>{if(!document.hidden)load()});
+
+ return()=>{
+  clearInterval(timer);
+  window.removeEventListener('focus',onFocus);
+  supabase.removeChannel(ch);
+ }
+},[]);
 
  async function load(){
   const {data:p,error:pe}=await supabase.from('participants').select('*').order('created_at');
