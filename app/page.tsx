@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 
 type Player={id:string;first_name:string;last_name:string;phone:string;player_code:string;team:string;flag:string;points:number;wins:number;losses:number;goals_for:number;goals_against:number};
@@ -64,13 +64,14 @@ export default function Home(){
  const [admin,setAdmin]=useState({phone:'',passcode:''});
  const [isAdmin,setIsAdmin]=useState(false);
  const [broadcast,setBroadcast]=useState('');
+ const audioRef=useRef<AudioContext|null>(null);
  const [selectedPlayer,setSelectedPlayer]=useState<Player|null>(null);
  const [form,setForm]=useState({first_name:'',last_name:'',phone:'',player_code:'',team:'Argentina',flag:'🇦🇷'});
 
  useEffect(()=>{load();const ch=supabase.channel('family-live-v2')
- .on('postgres_changes',{event:'*',schema:'public',table:'participants'},load)
- .on('postgres_changes',{event:'*',schema:'public',table:'wc_matches'},load)
- .on('postgres_changes',{event:'*',schema:'public',table:'match_picks'},load)
+ .on('postgres_changes',{event:'*',schema:'public',table:'participants'},liveUpdate)
+ .on('postgres_changes',{event:'*',schema:'public',table:'wc_matches'},liveUpdate)
+ .on('postgres_changes',{event:'*',schema:'public',table:'match_picks'},liveUpdate)
  .subscribe();
 
  const timer=setInterval(load,1000);
@@ -85,7 +86,23 @@ export default function Home(){
  }
 },[]);
 
- async function load(){
+ function beep(){
+  try{
+   const w=window as any;
+   const ctx:AudioContext=audioRef.current??new (w.AudioContext||w.webkitAudioContext)();
+   audioRef.current=ctx;
+   const o=ctx.createOscillator(); const g=ctx.createGain();
+   o.frequency.value=880; o.connect(g); g.connect(ctx.destination);
+   g.gain.setValueAtTime(0.001,ctx.currentTime);
+   g.gain.exponentialRampToValueAtTime(0.2,ctx.currentTime+0.02);
+   g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.25);
+   o.start(); o.stop(ctx.currentTime+0.3);
+  }catch{}
+}
+
+async function liveUpdate(){ beep(); await load(); }
+
+async function load(){
   const {data:p,error:pe}=await supabase.from('participants').select('*').order('created_at');
   const {data:m,error:me}=await supabase.from('wc_matches').select('*').order('id');
   const {data:k,error:ke}=await supabase.from('match_picks').select('*');
