@@ -2,3 +2,9 @@
 .pickBoard{border-color:#00a3ff66}.pickTotals{display:grid;grid-template-columns:1fr 1fr;gap:14px}.pickTotals div{background:#07111f;border:1px solid #ffffff20;border-radius:18px;padding:16px;display:flex;justify-content:space-between;align-items:center}.pickTotals b{font-size:22px}.pickTotals span{font-size:42px;font-weight:1000}.choiceRow{display:grid;grid-template-columns:1fr 1fr;gap:10px}.selectedChoice{background:linear-gradient(135deg,#ffcc00,#16d46b);color:#06111e}
 @media(max-width:900px){.pickTotals,.choiceRow{grid-template-columns:1fr}}
 .liveEvent{margin:16px 0;padding:18px;border-radius:20px;background:linear-gradient(135deg,#06111e,#143b69);border:1px solid #00a3ff88;box-shadow:0 0 30px #00a3ff33;display:flex;justify-content:space-between;gap:16px;align-items:center}.liveEvent b{font-size:24px}.liveEvent span{color:#d8e8ff}.tv .liveEvent{font-size:32px;animation:pulse 1.2s ease-in-out infinite alternate}@keyframes pulse{from{transform:scale(1);box-shadow:0 0 20px #00a3ff33}to{transform:scale(1.01);box-shadow:0 0 50px #16d46b55}}
+
+.modalBackdrop{position:fixed;inset:0;background:#000b;z-index:9999;display:flex;align-items:center;justify-content:center;padding:18px}
+.modalCard{width:min(900px,96vw);max-height:88vh;overflow:auto;background:#0e1b2f;border:1px solid #ffffff33;border-radius:22px;padding:18px;box-shadow:0 30px 90px #000}
+.winnerText{color:#16d46b;font-weight:900}
+.selectedChoice{background:linear-gradient(135deg,#16d46b,#00a3ff);color:#04111f}
+.choiceRow{display:grid;grid-template-columns:1fr 1fr;gap:8px}
