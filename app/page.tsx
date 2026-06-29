@@ -67,6 +67,7 @@ export default function Home(){
  const audioRef=useRef<AudioContext|null>(null);
  const audioRef=useRef<AudioContext|null>(null);
  const audioRef=useRef<AudioContext|null>(null);
+ const audioRef=useRef<AudioContext|null>(null);
  const [selectedPlayer,setSelectedPlayer]=useState<Player|null>(null);
  const [form,setForm]=useState({first_name:'',last_name:'',phone:'',player_code:'',team:'Argentina',flag:'🇦🇷'});
 
