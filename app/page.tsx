@@ -33,6 +33,21 @@ function playerChance(player:Player,players:Player[]){
  const bonus=(player.points||0)===max?8:0;
  return Math.min(99,Math.max(1,Math.round((base/total)*100+bonus)));
 }
+
+function roadToVictory(player:Player,players:Player[],matches:Match[],picks:Pick[]){
+ const playerPicks=picks.filter(p=>p.participant_id===player.id);
+ const remaining=matches.filter(m=>m.status!=='final');
+ const needs=remaining.slice(0,5).map(m=>{
+  const pick=playerPicks.find(p=>p.match_id===m.id);
+  return pick?`${pick.selected_team} over ${pick.selected_team===m.team_a?m.team_b:m.team_a}`:`Pick ${m.team_a} vs ${m.team_b}`;
+ });
+ const rivals=[...players].filter(p=>p.id!==player.id).sort((a,b)=>(b.points||0)-(a.points||0));
+ const rival=rivals[0];
+ const current=playerChance(player,players);
+ const jump=Math.min(99,current+20);
+ return {needs,rival,jump};
+}
+
 function needText(player:Player,matches:Match[],picks:Pick[]){
  const remaining=matches.find(m=>m.status!=='final');
  if(!remaining)return 'All listed games are final. Watch for admin updates.';
@@ -149,7 +164,7 @@ export default function Home(){
   {!isAdmin?<section className="card"><h2>Admin</h2><div className="row"><input placeholder="Admin mobile" value={admin.phone} onChange={e=>setAdmin({...admin,phone:e.target.value})}/><input placeholder="Passcode" type="password" value={admin.passcode} onChange={e=>setAdmin({...admin,passcode:e.target.value})}/><button onClick={login}>Open Admin</button></div></section>:
   <section className="card admin"><h2>Admin Control Center</h2><h3>Broadcast SMS</h3><div className="row"><input placeholder="Message everyone" value={broadcast} onChange={e=>setBroadcast(e.target.value)}/><button onClick={broadcastSMS}>Send SMS</button></div><h3>Live Match Updates</h3><div className="list">{matches.map(m=><AdminMatch key={m.id} m={m} save={updateMatch}/>)}</div></section>}
 
-  {selectedPlayer&&<div className="modalBackdrop" onClick={()=>setSelectedPlayer(null)}><div className="modalCard" onClick={e=>e.stopPropagation()}><button className="ghost" onClick={()=>setSelectedPlayer(null)}>Close</button><h2>{selectedPlayer.flag} {selectedPlayer.first_name} {selectedPlayer.last_name}'s Picks</h2><p className="muted">{selectedPlayer.team} • {selectedPlayer.points||0} pts • Chance to win: {playerChance(selectedPlayer,players)}%</p><div className="locked">🎯 {needText(selectedPlayer,matches,picks)}</div><div className="list">{matches.map(m=>{const pick=picks.find(x=>x.participant_id===selectedPlayer.id&&x.match_id===m.id);const correct=m.winner&&pick?.selected_team===m.winner;const wrong=m.winner&&pick&&pick.selected_team!==m.winner;return <div className="item" key={m.id}><span><b>{m.flag_a} {m.team_a} {m.score_a} - {m.score_b} {m.flag_b} {m.team_b}</b><br/><span className="muted">{m.round} • {m.kickoff} • {m.status}</span><br/>Pick: {pick?pick.selected_team:'No pick yet'} {correct?'✅':wrong?'❌':''}</span><b>{m.winner?`Winner: ${m.winner}`:'TBD'}</b></div>})}</div></div></div>}
+  {selectedPlayer&&<div className="modalBackdrop" onClick={()=>setSelectedPlayer(null)}><div className="modalCard" onClick={e=>e.stopPropagation()}><button className="ghost" onClick={()=>setSelectedPlayer(null)}>Close</button><h2>{selectedPlayer.flag} {selectedPlayer.first_name} {selectedPlayer.last_name}'s Picks</h2><p className="muted">{selectedPlayer.team} • {selectedPlayer.points||0} pts • Chance to win: {playerChance(selectedPlayer,players)}%</p><div className="locked">🎯 {needText(selectedPlayer,matches,picks)}</div>{(()=>{const r=roadToVictory(selectedPlayer,players,matches,picks);return <div className="roadCard"><h3>🏆 Road to Victory</h3><p><b>If these happen...</b></p><ul>{r.needs.map((n,i)=><li key={i}>✅ {n}</li>)}</ul><p><b>Chance jumps to:</b> {r.jump}%</p><p><b>Most dangerous opponent:</b> {r.rival?`${r.rival.flag} ${r.rival.first_name}`:"Nobody yet"}</p></div>})()}<div className="list">{matches.map(m=>{const pick=picks.find(x=>x.participant_id===selectedPlayer.id&&x.match_id===m.id);const correct=m.winner&&pick?.selected_team===m.winner;const wrong=m.winner&&pick&&pick.selected_team!==m.winner;return <div className="item" key={m.id}><span><b>{m.flag_a} {m.team_a} {m.score_a} - {m.score_b} {m.flag_b} {m.team_b}</b><br/><span className="muted">{m.round} • {m.kickoff} • {m.status}</span><br/>Pick: {pick?pick.selected_team:'No pick yet'} {correct?'✅':wrong?'❌':''}</span><b>{m.winner?`Winner: ${m.winner}`:'TBD'}</b></div>})}</div></div></div>}
   <div className="footer">Family World Cup Live • Fun mode now • Pro version later</div>
  </main>
 }
