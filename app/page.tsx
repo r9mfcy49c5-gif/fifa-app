@@ -73,7 +73,7 @@ export default function Home(){
  .on('postgres_changes',{event:'*',schema:'public',table:'match_picks'},load)
  .subscribe();
 
- const timer=setInterval(load,3000);
+ const timer=setInterval(load,1000);
  const onFocus=()=>load();
  window.addEventListener('focus',onFocus);
  document.addEventListener('visibilitychange',()=>{if(!document.hidden)load()});
