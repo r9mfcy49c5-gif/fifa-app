@@ -133,7 +133,7 @@ async function load(){
   }else{
    const {error}=await supabase.from('participants').insert({first_name:form.first_name,last_name:form.last_name,phone,player_code:form.player_code,team:form.team,flag:form.flag,points:0,wins:0,losses:0,goals_for:0,goals_against:0});
    if(error){setStatus(error.message);return}
-   await sendSMS(players.map(p=>p.phone),`${form.first_name} joined The Lytle Lemon World Cup Challenge as ${form.flag} ${form.team}!`);
+   await sendSMS(players.map(p=>p.phone),`${form.first_name} joined Lytle Lemon FIFA World Cup Live as ${form.flag} ${form.team}!`);
    setStatus('Player saved. Make picks below.');
   }
   await load();
@@ -166,14 +166,14 @@ async function load(){
   const winner=a===b?null:(a>b?m.team_a:m.team_b);
   const {error}=await supabase.from('wc_matches').update({score_a:a,score_b:b,status:st,winner,minute,extra_time,highlights_url,updated_at:new Date().toISOString()}).eq('id',m.id);
   if(error){setStatus(error.message);return}
-  await sendSMS(players.map(p=>p.phone),`Lytle Lemon World Cup update: ${m.flag_a} ${m.team_a} ${a}-${b} ${m.flag_b} ${m.team_b}${winner?`. Winner: ${winner}`:''}`);
+  await sendSMS(players.map(p=>p.phone),`Lytle Lemon FIFA World Cup Live update: ${m.flag_a} ${m.team_a} ${a}-${b} ${m.flag_b} ${m.team_b}${winner?`. Winner: ${winner}`:''}`);
   await recalc();
   setStatus('Match updated. Leaderboard recalculated.');
  }
 
  async function broadcastSMS(){
   if(!broadcast.trim())return;
-  await sendSMS(players.map(p=>p.phone),`Lytle Lemon World Cup: ${broadcast}`);
+  await sendSMS(players.map(p=>p.phone),`Lytle Lemon FIFA World Cup Live: ${broadcast}`);
   setBroadcast('');
   setStatus('Broadcast sent if Twilio is configured.');
  }
@@ -187,7 +187,7 @@ async function load(){
  const finals=matches.filter(m=>m.status==='final');
 
  return <main className="wrap">
-  <section className="hero"><div><h1>🏆 The Lytle Lemon World Cup Challenge</h1><p className="muted">Live family picks, full match board, admin scoring, SMS broadcasts, and leaderboard updates.</p></div><div className="heroActions"><button className="ghost" onClick={()=>{setSoundEnabled(true);setStatus('Sound enabled.');beep();}}>🔊 Enable Sound</button><div className="badge">V1.0 GOLD</div></div></section>{flash&&<section className="liveFlash">{flash}</section>}<section className="ticker"><b>LIVE TICKER</b><span>{live.length?live.map(m=>`${m.flag_a} ${m.team_a} ${m.score_a}-${m.score_b} ${m.flag_b} ${m.team_b} ${m.minute?`• ${m.minute}'`:''}`).join('   •   '):'No live match marked yet — Admin can set a match to LIVE.'}</span></section>
+  <section className="hero"><div><h1>🏆 Lytle Lemon FIFA World Cup Live</h1><p className="muted">Live family picks, full match board, admin scoring, SMS broadcasts, and leaderboard updates.</p></div><div className="heroActions"><button className="ghost" onClick={()=>{setSoundEnabled(true);setStatus('Sound enabled.');beep();}}>🔊 Enable Sound</button><div className="badge">V1.0 GOLD</div></div></section>{flash&&<section className="liveFlash">{flash}</section>}<section className="ticker"><b>LIVE TICKER</b><span>{live.length?live.map(m=>`${m.flag_a} ${m.team_a} ${m.score_a}-${m.score_b} ${m.flag_b} ${m.team_b} ${m.minute?`• ${m.minute}'`:''}`).join('   •   '):'No live match marked yet — Admin can set a match to LIVE.'}</span></section>
 
   <section className="card pickBoard stadium"><h2>🔥 LIVE CENTER</h2>{live.length?live.map(m=><ScoreCard key={m.id} m={m} picks={picks}/>):<p className="muted">No match marked live yet. Admin can set one live below.</p>}{upset&&<div className="locked">🚨 Upset alert: {upset.winner} beat the odds!</div>}</section>
 
@@ -210,7 +210,7 @@ async function load(){
   <section className="card admin"><h2>Admin Control Center</h2><h3>Broadcast SMS</h3><div className="row"><input placeholder="Message everyone" value={broadcast} onChange={e=>setBroadcast(e.target.value)}/><button onClick={broadcastSMS}>Send SMS</button></div><h3>Live Match Updates</h3><div className="list">{matches.map(m=><AdminMatch key={m.id} m={m} save={updateMatch}/>)}</div></section>}
 
   {selectedPlayer&&<div className="modalBackdrop" onClick={()=>setSelectedPlayer(null)}><div className="modalCard" onClick={e=>e.stopPropagation()}><button className="ghost" onClick={()=>setSelectedPlayer(null)}>Close</button><h2>{selectedPlayer.flag} {selectedPlayer.first_name} {selectedPlayer.last_name}'s Picks</h2><p className="muted">{selectedPlayer.team} • {selectedPlayer.points||0} pts • Chance to win: {playerChance(selectedPlayer,players)}%</p><div className="locked">🎯 {needText(selectedPlayer,matches,picks)}</div>{(()=>{const r=roadToVictory(selectedPlayer,players,matches,picks);return <div className="roadCard"><h3>🏆 Road to Victory</h3><p><b>If these happen...</b></p><ul>{r.needs.map((n,i)=><li key={i}>✅ {n}</li>)}</ul><p><b>Chance jumps to:</b> {r.jump}%</p><p><b>Most dangerous opponent:</b> {r.rival?`${r.rival.flag} ${r.rival.first_name}`:"Nobody yet"}</p></div>})()}<div className="list">{matches.map(m=>{const pick=picks.find(x=>x.participant_id===selectedPlayer.id&&x.match_id===m.id);const correct=m.winner&&pick?.selected_team===m.winner;const wrong=m.winner&&pick&&pick.selected_team!==m.winner;return <div className="item" key={m.id}><span><b>{m.flag_a} {m.team_a} {m.score_a} - {m.score_b} {m.flag_b} {m.team_b}</b><br/><span className="muted">{m.round} • {m.kickoff} • {m.status}</span><br/>Pick: {pick?pick.selected_team:'No pick yet'} {correct?'✅':wrong?'❌':''}</span><b>{m.winner?`Winner: ${m.winner}`:'TBD'}</b></div>})}</div></div></div>}
-  <div className="footer">The Lytle Lemon World Cup Challenge • Fun mode now • Pro version later</div>
+  <div className="footer">Lytle Lemon FIFA World Cup Live • Fun mode now • Pro version later</div>
  </main>
 }
 
