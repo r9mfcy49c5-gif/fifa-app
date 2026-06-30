@@ -74,3 +74,9 @@ body{background:radial-gradient(circle at top,#10294f,#020711 60%)!important}
  .team b{font-size:28px}
  .ticker{font-size:14px}
 }
+
+.fanZone{border-color:#ffcc0066}
+.chatBox{max-height:260px;overflow:auto;display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
+.chatMsg{padding:10px 12px;border-radius:14px;background:#ffffff10;border:1px solid #ffffff18}
+.chatMsg b{display:block;color:#ffcc00;margin-bottom:4px}
+.chatMsg span{color:#f8fbff}

@@ -66,6 +66,8 @@ export default function Home(){
  const [admin,setAdmin]=useState({phone:'',passcode:''});
  const [isAdmin,setIsAdmin]=useState(false);
  const [broadcast,setBroadcast]=useState('');
+ const [chat,setChat]=useState<any[]>([]);
+ const [chatText,setChatText]=useState('');
  const audioRef=useRef<AudioContext|null>(null);
  const audioRef=useRef<AudioContext|null>(null);
  const audioRef=useRef<AudioContext|null>(null);
@@ -77,6 +79,7 @@ export default function Home(){
  .on('postgres_changes',{event:'*',schema:'public',table:'participants'},liveUpdate)
  .on('postgres_changes',{event:'*',schema:'public',table:'wc_matches'},liveUpdate)
  .on('postgres_changes',{event:'*',schema:'public',table:'match_picks'},liveUpdate)
+ .on('postgres_changes',{event:'*',schema:'public',table:'fan_messages'},liveUpdate)
  .subscribe();
 
  const timer=setInterval(load,1000);
@@ -113,6 +116,8 @@ async function load(){
   const {data:k,error:ke}=await supabase.from('match_picks').select('*');
   if(pe||me||ke){setStatus(pe?.message||me?.message||ke?.message||'Database error');return}
   setPlayers((p||[]) as Player[]);setMatches((m||[]) as Match[]);setPicks((k||[]) as Pick[]);
+   const {data:c}=await supabase.from('fan_messages').select('*').order('created_at',{ascending:false}).limit(30);
+   setChat((c||[]).reverse());
  }
 
  const me=players.find(p=>clean(p.phone)===clean(form.phone)&&p.player_code===form.player_code);
@@ -188,7 +193,13 @@ async function load(){
 
   <div className="grid">
    <section className="card"><h2>Join / Update Player</h2><div className="row"><input placeholder="First name" value={form.first_name} onChange={e=>setForm({...form,first_name:e.target.value})}/><input placeholder="Last name" value={form.last_name} onChange={e=>setForm({...form,last_name:e.target.value})}/></div><br/><div className="row"><input placeholder="U.S. mobile number" value={form.phone} onChange={e=>setForm({...form,phone:e.target.value})}/><input placeholder="4-digit code" maxLength={4} value={form.player_code} onChange={e=>setForm({...form,player_code:e.target.value.replace(/\D/g,'')})}/></div><p className="hint">Same phone + code lets a player update picks anytime.</p><label className="muted">Tournament team</label><select value={form.team} onChange={e=>{const t=teams.find(x=>x[0]===e.target.value)!;setForm({...form,team:t[0],flag:t[1]})}}>{teams.map(t=><option key={`${t[0]}-${t[1]}`} value={t[0]}>{t[1]} {t[0]}</option>)}</select><br/><br/><button onClick={savePlayer}>Save Player</button><p className="muted">{status}</p><div className="invite"><b>Share Link</b><span>{typeof window==='undefined'?'':window.location.origin}</span></div></section>
-   <section className="card"><h2>🏆 Live Leaderboard</h2><div className="list">{board.map((p,i)=><div className="item" key={p.id} onClick={()=>setSelectedPlayer(p)} style={{cursor:'pointer'}}><span>#{i+1} {p.flag} {p.first_name} {p.last_name}<br/><span className="muted">{p.team} • W {p.wins||0} L {p.losses||0} • Chance to win: {playerChance(p,players)}% • Tap to view picks</span><div className="meter"><i style={{width:`${playerChance(p,players)}%`}}></i></div></span><b>{p.points||0}</b></div>)}</div></section>
+ 
+  <section className="card fanZone"><h2>💬 Fan Zone</h2>
+    <div className="chatBox">{chat.map(m=><div className="chatMsg" key={m.id}><b>{m.player_name}</b><span>{m.message}</span></div>)}</div>
+    <div className="row"><input placeholder="Talk some friendly trash..." value={chatText} onChange={e=>setChatText(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')sendChat()}}/><button onClick={sendChat}>Send</button></div>
+  </section>
+
+  <section className="card"><h2>🏆 Live Leaderboard</h2><div className="list">{board.map((p,i)=><div className="item" key={p.id} onClick={()=>setSelectedPlayer(p)} style={{cursor:'pointer'}}><span>#{i+1} {p.flag} {p.first_name} {p.last_name}<br/><span className="muted">{p.team} • W {p.wins||0} L {p.losses||0} • Chance to win: {playerChance(p,players)}% • Tap to view picks</span><div className="meter"><i style={{width:`${playerChance(p,players)}%`}}></i></div></span><b>{p.points||0}</b></div>)}</div></section>
   </div>
 
   <section className="card"><h2>⚽ Make / Change Picks</h2><button onClick={()=>setStatus("Picks submitted / updated. You can change them anytime in family mode.")}>Submit / Update Picks</button><br/><br/>{!me&&<p className="locked">Save player first. Then pick every match here.</p>}<div className="bracket">{matches.map(m=>{const pick=me?picks.find(x=>x.participant_id===me.id&&x.match_id===m.id):undefined;return <div className="match" key={m.id}><div className="row"><b>{m.round}</b><span className="badge">{m.status}</span></div><p className="muted">{m.kickoff}</p><div className="team"><span>{m.flag_a} {m.team_a}</span><b>{m.score_a}</b></div><div className="team"><span>{m.flag_b} {m.team_b}</span><b>{m.score_b}</b></div>{m.winner&&<p className="winnerText">Winner: {m.winner}</p>}<div className="choiceRow"><button className={pick?.selected_team===m.team_a?'selectedChoice':'ghost'} onClick={()=>savePick(m,m.team_a)}>Submit / Update: {m.flag_a} {m.team_a}</button><button className={pick?.selected_team===m.team_b?'selectedChoice':'ghost'} onClick={()=>savePick(m,m.team_b)}>Submit / Update: {m.flag_b} {m.team_b}</button></div></div>})}</div></section>
