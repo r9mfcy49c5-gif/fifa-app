@@ -35,3 +35,5 @@
 .tvBoard .match{transition:.2s;box-shadow:0 0 20px #0008}
 .tvBoard .match:hover{transform:scale(1.01);border-color:#16d46b88}
 .heroActions{display:flex;gap:10px;align-items:center}
+
+.extraTime{color:#ff4d4d;font-weight:1000;margin-left:6px}
