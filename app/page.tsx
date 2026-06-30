@@ -61,6 +61,8 @@ export default function Home(){
  const [matches,setMatches]=useState<Match[]>([]);
  const [picks,setPicks]=useState<Pick[]>([]);
  const [status,setStatus]=useState('');
+ const [flash,setFlash]=useState('');
+ const [soundEnabled,setSoundEnabled]=useState(false);
  const [admin,setAdmin]=useState({phone:'',passcode:''});
  const [isAdmin,setIsAdmin]=useState(false);
  const [broadcast,setBroadcast]=useState('');
@@ -89,7 +91,7 @@ export default function Home(){
  }
 },[]);
 
- function beep(){
+ function beep(){ if(!soundEnabled)return;
   try{
    const w=window as any;
    const ctx:AudioContext=audioRef.current??new (w.AudioContext||w.webkitAudioContext)();
@@ -103,7 +105,7 @@ export default function Home(){
   }catch{}
 }
 
-async function liveUpdate(){ beep(); await load(); }
+async function liveUpdate(){ beep(); setFlash('⚡ Live update received'); setTimeout(()=>setFlash(''),2200); await load(); }
 
 async function load(){
   const {data:p,error:pe}=await supabase.from('participants').select('*').order('created_at');
@@ -180,9 +182,9 @@ async function load(){
  const finals=matches.filter(m=>m.status==='final');
 
  return <main className="wrap">
-  <section className="hero"><div><h1>🏆 Family World Cup Live</h1><p className="muted">Live family picks, full match board, admin scoring, SMS broadcasts, and leaderboard updates.</p></div><div className="badge">V2 FAMILY LIVE</div></section>
+  <section className="hero"><div><h1>🏆 Family World Cup Live</h1><p className="muted">Live family picks, full match board, admin scoring, SMS broadcasts, and leaderboard updates.</p></div><div className="heroActions"><button className="ghost" onClick={()=>{setSoundEnabled(true);setStatus('Sound enabled.');beep();}}>🔊 Enable Sound</button><div className="badge">V2 FAMILY LIVE</div></div></section>{flash&&<section className="liveFlash">{flash}</section>}<section className="ticker"><b>LIVE TICKER</b><span>{live.length?live.map(m=>`${m.flag_a} ${m.team_a} ${m.score_a}-${m.score_b} ${m.flag_b} ${m.team_b} ${m.minute?`• ${m.minute}'`:''}`).join('   •   '):'No live match marked yet — Admin can set a match to LIVE.'}</span></section>
 
-  <section className="card pickBoard"><h2>🔥 Live Now</h2>{live.length?live.map(m=><ScoreCard key={m.id} m={m} picks={picks}/>):<p className="muted">No match marked live yet. Admin can set one live below.</p>}{upset&&<div className="locked">🚨 Upset alert: {upset.winner} beat the odds!</div>}</section>
+  <section className="card pickBoard stadium"><h2>🔥 LIVE CENTER</h2>{live.length?live.map(m=><ScoreCard key={m.id} m={m} picks={picks}/>):<p className="muted">No match marked live yet. Admin can set one live below.</p>}{upset&&<div className="locked">🚨 Upset alert: {upset.winner} beat the odds!</div>}</section>
 
   <div className="grid">
    <section className="card"><h2>Join / Update Player</h2><div className="row"><input placeholder="First name" value={form.first_name} onChange={e=>setForm({...form,first_name:e.target.value})}/><input placeholder="Last name" value={form.last_name} onChange={e=>setForm({...form,last_name:e.target.value})}/></div><br/><div className="row"><input placeholder="U.S. mobile number" value={form.phone} onChange={e=>setForm({...form,phone:e.target.value})}/><input placeholder="4-digit code" maxLength={4} value={form.player_code} onChange={e=>setForm({...form,player_code:e.target.value.replace(/\D/g,'')})}/></div><p className="hint">Same phone + code lets a player update picks anytime.</p><label className="muted">Tournament team</label><select value={form.team} onChange={e=>{const t=teams.find(x=>x[0]===e.target.value)!;setForm({...form,team:t[0],flag:t[1]})}}>{teams.map(t=><option key={`${t[0]}-${t[1]}`} value={t[0]}>{t[1]} {t[0]}</option>)}</select><br/><br/><button onClick={savePlayer}>Save Player</button><p className="muted">{status}</p><div className="invite"><b>Share Link</b><span>{typeof window==='undefined'?'':window.location.origin}</span></div></section>
@@ -191,7 +193,7 @@ async function load(){
 
   <section className="card"><h2>⚽ Make / Change Picks</h2><button onClick={()=>setStatus("Picks submitted / updated. You can change them anytime in family mode.")}>Submit / Update Picks</button><br/><br/>{!me&&<p className="locked">Save player first. Then pick every match here.</p>}<div className="bracket">{matches.map(m=>{const pick=me?picks.find(x=>x.participant_id===me.id&&x.match_id===m.id):undefined;return <div className="match" key={m.id}><div className="row"><b>{m.round}</b><span className="badge">{m.status}</span></div><p className="muted">{m.kickoff}</p><div className="team"><span>{m.flag_a} {m.team_a}</span><b>{m.score_a}</b></div><div className="team"><span>{m.flag_b} {m.team_b}</span><b>{m.score_b}</b></div>{m.winner&&<p className="winnerText">Winner: {m.winner}</p>}<div className="choiceRow"><button className={pick?.selected_team===m.team_a?'selectedChoice':'ghost'} onClick={()=>savePick(m,m.team_a)}>Submit / Update: {m.flag_a} {m.team_a}</button><button className={pick?.selected_team===m.team_b?'selectedChoice':'ghost'} onClick={()=>savePick(m,m.team_b)}>Submit / Update: {m.flag_b} {m.team_b}</button></div></div>})}</div></section>
 
-  <section className="card bracketCard"><h2>📺 Match Board</h2><h3>Live</h3>{live.map(m=><ScoreCard key={`l-${m.id}`} m={m} picks={picks}/>)}<h3>Upcoming</h3>{upcoming.map(m=><ScoreCard key={`u-${m.id}`} m={m} picks={picks}/>)}<h3>Finals</h3>{finals.map(m=><ScoreCard key={`f-${m.id}`} m={m} picks={picks}/>)}</section>
+  <section className="card bracketCard tvBoard"><h2>📺 ESPN-Style Match Board</h2><h3>Live</h3>{live.map(m=><ScoreCard key={`l-${m.id}`} m={m} picks={picks}/>)}<h3>Upcoming</h3>{upcoming.map(m=><ScoreCard key={`u-${m.id}`} m={m} picks={picks}/>)}<h3>Finals</h3>{finals.map(m=><ScoreCard key={`f-${m.id}`} m={m} picks={picks}/>)}</section>
 
   {!isAdmin?<section className="card"><h2>Admin</h2><div className="row"><input placeholder="Admin mobile" value={admin.phone} onChange={e=>setAdmin({...admin,phone:e.target.value})}/><input placeholder="Passcode" type="password" value={admin.passcode} onChange={e=>setAdmin({...admin,passcode:e.target.value})}/><button onClick={login}>Open Admin</button></div></section>:
   <section className="card admin"><h2>Admin Control Center</h2><h3>Broadcast SMS</h3><div className="row"><input placeholder="Message everyone" value={broadcast} onChange={e=>setBroadcast(e.target.value)}/><button onClick={broadcastSMS}>Send SMS</button></div><h3>Live Match Updates</h3><div className="list">{matches.map(m=><AdminMatch key={m.id} m={m} save={updateMatch}/>)}</div></section>}
