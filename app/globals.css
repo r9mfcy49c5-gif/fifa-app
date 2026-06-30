@@ -37,3 +37,40 @@
 .heroActions{display:flex;gap:10px;align-items:center}
 
 .extraTime{color:#ff4d4d;font-weight:1000;margin-left:6px}
+
+/* ESPN MODE */
+body{background:radial-gradient(circle at top,#10294f,#020711 60%)!important}
+.hero{padding:18px;border-radius:24px;background:linear-gradient(135deg,#07111f,#123b6f);border:1px solid #16d46b55;box-shadow:0 0 45px #00a3ff22}
+.hero h1{letter-spacing:-.04em;text-shadow:0 0 22px #00a3ff77}
+.badge{background:linear-gradient(135deg,#ffcc00,#16d46b)!important;color:#04111f!important;font-weight:1000!important}
+
+.card{animation:cardPop .35s ease;border-color:#ffffff24}
+@keyframes cardPop{from{opacity:.4;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+.pickBoard h2,.bracketCard h2{font-size:clamp(28px,4vw,48px);text-transform:uppercase}
+.match{position:relative;overflow:hidden;border:1px solid #ffffff26;background:linear-gradient(180deg,#081426,#020711)}
+.match:before{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,#16d46b18,transparent);transform:translateX(-120%);animation:shine 4s infinite}
+@keyframes shine{to{transform:translateX(120%)}}
+
+.team{font-size:22px;font-weight:900}
+.team b{font-size:34px;color:#ffcc00;text-shadow:0 0 18px #ffcc0066}
+.status.live,.badge{animation:livePulse 1s infinite alternate}
+@keyframes livePulse{from{box-shadow:0 0 8px #16d46b55}to{box-shadow:0 0 28px #16d46baa}}
+
+.ticker{font-size:18px;text-transform:uppercase}
+.liveFlash{font-size:24px;text-transform:uppercase}
+
+.winnerText{font-size:20px;color:#16d46b;text-shadow:0 0 18px #16d46b88}
+.extraTime{color:#ff3333!important;font-size:24px;text-shadow:0 0 14px #ff3333aa}
+
+.highlightLink{background:linear-gradient(135deg,#ff3333,#ffcc00)!important;color:#04111f!important}
+
+.item:hover{transform:scale(1.01);border-color:#16d46b88;box-shadow:0 0 24px #16d46b22}
+.item{transition:.18s}
+
+@media(max-width:700px){
+ .wrap{padding:12px}
+ .team{font-size:18px}
+ .team b{font-size:28px}
+ .ticker{font-size:14px}
+}
