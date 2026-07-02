@@ -488,17 +488,15 @@ export default function Home(){
    </div>
   }
 
-  <div className="footer">Lytle Lemon FIFA World Cup Live • Fun mode now • Pro version later</div>
- </main>
-}
-
-function ScoreCard({m,picks=[]}:{m:Match;picks?:Pick[]}){
- const [a,b]=teamChance(m.team_a,m.team_b);
- const total=picks.filter(p=>p.match_id===m.id).length;
- const pa=pct(picks.filter(p=>p.match_id===m.id&&p.selected_team===m.team_a).length,total);
- const pb=pct(picks.filter(p=>p.match_id===m.id&&p.selected_team===m.team_b).length,total);
- const isLive=(m.status||'').toLowerCase()==='live';
-
+<div className="footer">
+  <strong>🏆 Lytle Lemon FIFA World Cup Live</strong><br />
+  <span>Version 1.1 – ESPN Live Now</span><br />
+  <span>Created by Lytle Lemon</span><br />
+  <span>Powered by Lytle Lemon Technologies</span><br />
+  <span>Build Date: July 2, 2026</span><br />
+  <span>© 2026 Lytle Lemon Technologies. All Rights Reserved.</span>
+</div>
+  
  return <div className="match">
   <div className="row"><b>{m.round}</b><span className="badge">{m.status}</span></div>
   <p className="muted">{m.kickoff}</p>
