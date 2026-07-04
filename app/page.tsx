@@ -814,7 +814,7 @@ export default function Home() {
 
           <div className="invite">
             <b>Share Link</b>
-            <span>{typeof window === 'undefined' ? '' : window.location.origin}</span>
+            <span>"Lytle Lemon FIFA World Cup Live"</span>
           </div>
         </section>
       </div>
