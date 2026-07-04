@@ -3,546 +3,1120 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 
-type Player={id:string;first_name:string;last_name:string;phone:string;player_code:string;team:string;flag:string;points:number;wins:number;losses:number;goals_for:number;goals_against:number};
-type Match={id:string;round:string;kickoff:string;team_a:string;flag_a:string;team_b:string;flag_b:string;score_a:number;score_b:number;winner:string|null;status:string;minute?:number;extra_time?:number;highlights_url?:string};
-type Pick={id:string;participant_id:string;match_id:string;selected_team:string};
+type Player = {
+  id: string;
+  first_name: string;
+  last_name: string;
+  phone: string;
+  player_code: string;
+  team: string;
+  flag: string;
+  points: number;
+  wins: number;
+  losses: number;
+  goals_for: number;
+  goals_against: number;
+};
 
-const ADMIN_PHONE='7209880163';
-const ADMIN_PASSCODE='3737';
+type Match = {
+  id: string;
+  round: string;
+  kickoff: string;
+  team_a: string;
+  flag_a: string;
+  team_b: string;
+  flag_b: string;
+  score_a: number;
+  score_b: number;
+  winner: string | null;
+  status: string;
+  minute?: number;
+  extra_time?: number;
+  highlights_url?: string;
+};
 
-const teams=[
- ['Argentina','🇦🇷'],['Brazil','🇧🇷'],['France','🇫🇷'],['England','🏴'],['Spain','🇪🇸'],
- ['Germany','🇩🇪'],['Portugal','🇵🇹'],['USA','🇺🇸'],['Mexico','🇲🇽'],['Netherlands','🇳🇱'],
- ['Japan','🇯🇵'],['Canada','🇨🇦'],['Morocco','🇲🇦'],['Belgium','🇧🇪'],['Colombia','🇨🇴'],
- ['Paraguay','🇵🇾'],['Norway','🇳🇴'],['Sweden','🇸🇪'],['Ecuador','🇪🇨'],['Senegal','🇸🇳']
+type Pick = {
+  id: string;
+  participant_id: string;
+  match_id: string;
+  selected_team: string;
+};
+
+const ADMIN_PHONE = '7209880163';
+const ADMIN_PASSCODE = '3737';
+
+const teams = [
+  ['Argentina', '🇦🇷'],
+  ['Brazil', '🇧🇷'],
+  ['France', '🇫🇷'],
+  ['England', '🏴'],
+  ['Spain', '🇪🇸'],
+  ['Germany', '🇩🇪'],
+  ['Portugal', '🇵🇹'],
+  ['USA', '🇺🇸'],
+  ['Mexico', '🇲🇽'],
+  ['Netherlands', '🇳🇱'],
+  ['Japan', '🇯🇵'],
+  ['Canada', '🇨🇦'],
+  ['Morocco', '🇲🇦'],
+  ['Belgium', '🇧🇪'],
+  ['Colombia', '🇨🇴'],
+  ['Paraguay', '🇵🇾'],
+  ['Norway', '🇳🇴'],
+  ['Sweden', '🇸🇪'],
+  ['Ecuador', '🇪🇨'],
+  ['Senegal', '🇸🇳'],
 ];
 
-function clean(v:string){return v.replace(/\D/g,'')}
-function smsPhone(v:string){const d=clean(v);return d.length===10?`+1${d}`:d.startsWith('1')?`+${d}`:v}
-async function sendSMS(phones:string[],message:string){if(!phones.length)return;await fetch('/api/sms',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({phones:[...new Set(phones)].map(smsPhone),message})}).catch(()=>{})}
-
-function teamPower(team:string){
- const power:Record<string,number>={Brazil:92,France:90,Spain:88,Germany:86,Argentina:86,England:84,Portugal:83,Netherlands:82,Belgium:80,Canada:74,Japan:76,Morocco:77,USA:76,Mexico:75,Colombia:78,Switzerland:76,Croatia:78,Senegal:75,Sweden:74,Norway:73,Paraguay:72,Ecuador:72};
- return power[team] ?? 65;
+function clean(v: string) {
+  return v.replace(/\D/g, '');
 }
 
-function teamChance(a:string,b:string){
- const pa=teamPower(a), pb=teamPower(b);
- const ca=Math.round((pa/(pa+pb))*100);
- return [ca,100-ca];
+function smsPhone(v: string) {
+  const d = clean(v);
+  return d.length === 10 ? `+1${d}` : d.startsWith('1') ? `+${d}` : v;
 }
 
-function pct(n:number,d:number){return d?Math.round((n/d)*100):0}
-
-function playerChance(player:Player,players:Player[]){
- if(!players.length)return 0;
- const max=Math.max(...players.map(p=>p.points||0),0);
- const base=(player.points||0)+1;
- const total=players.reduce((sum,p)=>sum+(p.points||0)+1,0);
- const bonus=(player.points||0)===max?8:0;
- return Math.min(99,Math.max(1,Math.round((base/total)*100+bonus)));
+async function sendSMS(phones: string[], message: string) {
+  if (!phones.length) return;
+  await fetch('/api/sms', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      phones: [...new Set(phones)].map(smsPhone),
+      message,
+    }),
+  }).catch(() => {});
 }
 
-function roadToVictory(player:Player,players:Player[],matches:Match[],picks:Pick[]){
- const playerPicks=picks.filter(p=>p.participant_id===player.id);
- const remaining=matches.filter(m=>(m.status||'').toLowerCase()!=='final');
- const needs=remaining.slice(0,5).map(m=>{
-  const pick=playerPicks.find(p=>p.match_id===m.id);
-  return pick?`${pick.selected_team} over ${pick.selected_team===m.team_a?m.team_b:m.team_a}`:`Pick ${m.team_a} vs ${m.team_b}`;
- });
- const rivals=[...players].filter(p=>p.id!==player.id).sort((a,b)=>(b.points||0)-(a.points||0));
- const rival=rivals[0];
- const current=playerChance(player,players);
- const jump=Math.min(99,current+20);
- return {needs,rival,jump};
+function teamPower(team: string) {
+  const power: Record<string, number> = {
+    Brazil: 92,
+    France: 90,
+    Spain: 88,
+    Germany: 86,
+    Argentina: 86,
+    England: 84,
+    Portugal: 83,
+    Netherlands: 82,
+    Belgium: 80,
+    Canada: 74,
+    Japan: 76,
+    Morocco: 77,
+    USA: 76,
+    Mexico: 75,
+    Colombia: 78,
+    Switzerland: 76,
+    Croatia: 78,
+    Senegal: 75,
+    Sweden: 74,
+    Norway: 73,
+    Paraguay: 72,
+    Ecuador: 72,
+    Egypt: 74,
+    'DR Congo': 70,
+  };
+
+  return power[team] ?? 65;
 }
 
-function needText(player:Player,matches:Match[],picks:Pick[]){
- const remaining=matches.find(m=>(m.status||'').toLowerCase()!=='final');
- if(!remaining)return 'All listed games are final. Watch for admin updates.';
- const pick=picks.find(p=>p.participant_id===player.id&&p.match_id===remaining.id);
- return pick?`Next need: ${pick.selected_team} over ${pick.selected_team===remaining.team_a?remaining.team_b:remaining.team_a}`:`Needs a pick for ${remaining.team_a} vs ${remaining.team_b}`;
+function teamChance(a: string, b: string) {
+  const pa = teamPower(a);
+  const pb = teamPower(b);
+  const ca = Math.round((pa / (pa + pb)) * 100);
+  return [ca, 100 - ca];
 }
 
-function isLiveMatch(m:Match){
- return (m.status||'').toLowerCase()==='live';
+function pct(n: number, d: number) {
+  return d ? Math.round((n / d) * 100) : 0;
 }
 
-function isScheduledMatch(m:Match){
- return (m.status||'').toLowerCase()==='scheduled';
+function isLiveMatch(m: Match) {
+  return (m.status || '').toLowerCase() === 'live';
 }
 
-function getFeaturedMatches(matches:Match[]){
- const live=matches.filter(isLiveMatch);
-
- if(live.length){
-  return {label:'ESPN LIVE NOW',matches:live};
- }
-
- const next=matches.find(isScheduledMatch);
-
- return {
-  label:'ESPN NEXT UP',
-  matches:next?[next]:[]
- };
+function isScheduledMatch(m: Match) {
+  return (m.status || '').toLowerCase() === 'scheduled';
 }
 
-export default function Home(){
- const [players,setPlayers]=useState<Player[]>([]);
- const [matches,setMatches]=useState<Match[]>([]);
- const [picks,setPicks]=useState<Pick[]>([]);
- const [status,setStatus]=useState('');
- const [flash,setFlash]=useState('');
- const [soundEnabled,setSoundEnabled]=useState(false);
- const [admin,setAdmin]=useState({phone:'',passcode:''});
- const [isAdmin,setIsAdmin]=useState(false);
- const [broadcast,setBroadcast]=useState('');
- const [chat,setChat]=useState<any[]>([]);
- const [chatText,setChatText]=useState('');
- const audioRef=useRef<AudioContext|null>(null);
- const [selectedPlayer,setSelectedPlayer]=useState<Player|null>(null);
- const [form,setForm]=useState({first_name:'',last_name:'',phone:'',player_code:'',team:'Argentina',flag:'🇦🇷'});
+function isFinalMatch(m: Match) {
+  return (m.status || '').toLowerCase() === 'final';
+}
 
- useEffect(()=>{
-  load();
+function playerChance(player: Player, players: Player[]) {
+  if (!players.length) return 0;
 
-  const ch=supabase.channel('family-live-v2')
-   .on('postgres_changes',{event:'*',schema:'public',table:'participants'},liveUpdate)
-   .on('postgres_changes',{event:'*',schema:'public',table:'wc_matches'},liveUpdate)
-   .on('postgres_changes',{event:'*',schema:'public',table:'match_picks'},liveUpdate)
-   .on('postgres_changes',{event:'*',schema:'public',table:'fan_messages'},liveUpdate)
-   .subscribe();
+  const max = Math.max(...players.map((p) => p.points || 0), 0);
+  const base = (player.points || 0) + 1;
+  const total = players.reduce((sum, p) => sum + (p.points || 0) + 1, 0);
+  const bonus = (player.points || 0) === max ? 8 : 0;
 
-  const timer=setInterval(load,1000);
-  const onFocus=()=>load();
-  const onVisible=()=>{if(!document.hidden)load()};
+  return Math.min(99, Math.max(1, Math.round((base / total) * 100 + bonus)));
+}
 
-  window.addEventListener('focus',onFocus);
-  document.addEventListener('visibilitychange',onVisible);
+function needText(player: Player, matches: Match[], picks: Pick[]) {
+  const remaining = matches.find((m) => !isFinalMatch(m));
 
-  return()=>{
-   clearInterval(timer);
-   window.removeEventListener('focus',onFocus);
-   document.removeEventListener('visibilitychange',onVisible);
-   supabase.removeChannel(ch);
-  }
- },[]);
+  if (!remaining) return 'All listed games are final. Watch for admin updates.';
 
- function beep(){
-  if(!soundEnabled)return;
-  try{
-   const w=window as any;
-   const ctx:AudioContext=audioRef.current??new (w.AudioContext||w.webkitAudioContext)();
-   audioRef.current=ctx;
-   const o=ctx.createOscillator();
-   const g=ctx.createGain();
-   o.frequency.value=880;
-   o.connect(g);
-   g.connect(ctx.destination);
-   g.gain.setValueAtTime(0.001,ctx.currentTime);
-   g.gain.exponentialRampToValueAtTime(0.2,ctx.currentTime+0.02);
-   g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.25);
-   o.start();
-   o.stop(ctx.currentTime+0.3);
-  }catch{}
- }
-
- async function liveUpdate(){
-  beep();
-  setFlash('⚡ Live update received');
-  setTimeout(()=>setFlash(''),2200);
-  await load();
- }
-
- async function load(){
-  const {data:p,error:pe}=await supabase.from('participants').select('*').order('created_at');
-  const {data:m,error:me}=await supabase.from('wc_matches').select('*').order('id');
-  const {data:k,error:ke}=await supabase.from('match_picks').select('*');
-
-  if(pe||me||ke){
-   setStatus(pe?.message||me?.message||ke?.message||'Database error');
-   return;
-  }
-
-  setPlayers((p||[]) as Player[]);
-  setMatches((m||[]) as Match[]);
-  setPicks((k||[]) as Pick[]);
-
-  const {data:c}=await supabase.from('fan_messages').select('*').order('created_at',{ascending:false}).limit(30);
-  setChat((c||[]).reverse());
- }
-
- const me=players.find(p=>clean(p.phone)===clean(form.phone)&&p.player_code===form.player_code);
-
- async function savePlayer(){
-  if(!form.first_name||!form.last_name||clean(form.phone).length<10||form.player_code.length!==4){
-   setStatus('Enter name, mobile number, and 4-digit code.');
-   return;
-  }
-
-  const phone=clean(form.phone);
-  const existing=players.find(p=>clean(p.phone)===phone&&p.player_code===form.player_code);
-
-  if(existing){
-   const {error}=await supabase.from('participants').update({first_name:form.first_name,last_name:form.last_name,team:form.team,flag:form.flag}).eq('id',existing.id);
-   if(error){setStatus(error.message);return}
-   setStatus('Player updated. Make picks below.');
-  }else{
-   const {error}=await supabase.from('participants').insert({first_name:form.first_name,last_name:form.last_name,phone,player_code:form.player_code,team:form.team,flag:form.flag,points:0,wins:0,losses:0,goals_for:0,goals_against:0});
-   if(error){setStatus(error.message);return}
-   await sendSMS(players.map(p=>p.phone),`${form.first_name} joined Lytle Lemon FIFA World Cup Live as ${form.flag} ${form.team}!`);
-   setStatus('Player saved. Make picks below.');
-  }
-
-  await load();
- }
-
- async function savePick(m:Match,team:string){
-  const player=players.find(p=>clean(p.phone)===clean(form.phone)&&p.player_code===form.player_code);
-
-  if(!player){
-   setStatus('Save player first, or enter the same phone + 4-digit code.');
-   return;
-  }
-
-  const {error}=await supabase.from('match_picks').upsert(
-   {participant_id:player.id,match_id:m.id,selected_team:team,updated_at:new Date().toISOString()},
-   {onConflict:'participant_id,match_id'}
+  const pick = picks.find(
+    (p) => p.participant_id === player.id && p.match_id === remaining.id
   );
 
-  if(error){setStatus(error.message);return}
-  setStatus(`Pick saved: ${team}`);
-  await load();
- }
-
- async function sendChat(){
-  if(!chatText.trim())return;
-
-  const playerName=me?`${me.first_name} ${me.last_name}`:'Fan';
-
-  const {error}=await supabase.from('fan_messages').insert({
-   player_name:playerName,
-   message:chatText.trim()
-  });
-
-  if(error){
-   setStatus(error.message);
-   return;
-  }
-
-  setChatText('');
-  await load();
- }
-
- async function recalc(){
-  const finals=matches.filter(m=>(m.status||'').toLowerCase()==='final'&&m.winner);
-
-  for(const p of players){
-   let points=0,wins=0,losses=0;
-
-   for(const m of finals){
-    const pick=picks.find(x=>x.participant_id===p.id&&x.match_id===m.id);
-    if(!pick)continue;
-    if(pick.selected_team===m.winner){points+=3;wins++}else{losses++}
-   }
-
-   await supabase.from('participants').update({points,wins,losses}).eq('id',p.id);
-  }
-
-  await load();
- }
-
- async function updateMatch(m:Match,a:number,b:number,st:string,minute:number=0,highlights_url:string='',extra_time:number=0){
-  const winner=st==='final'&&a!==b?(a>b?m.team_a:m.team_b):null;
-
-  const {error}=await supabase.from('wc_matches').update({
-   score_a:a,
-   score_b:b,
-   status:st,
-   winner,
-   minute,
-   extra_time,
-   highlights_url,
-   updated_at:new Date().toISOString()
-  }).eq('id',m.id);
-
-  if(error){
-   setStatus(error.message);
-   return;
-  }
-
-  await sendSMS(players.map(p=>p.phone),`Lytle Lemon FIFA World Cup Live update: ${m.flag_a} ${m.team_a} ${a}-${b} ${m.flag_b} ${m.team_b}${winner?`. Winner: ${winner}`:''}`);
-  await recalc();
-  setStatus('Match updated. Leaderboard recalculated.');
- }
-
- async function broadcastSMS(){
-  if(!broadcast.trim())return;
-  await sendSMS(players.map(p=>p.phone),`Lytle Lemon FIFA World Cup Live: ${broadcast}`);
-  setBroadcast('');
-  setStatus('Broadcast sent if Twilio is configured.');
- }
-
- function login(){
-  const ok=clean(admin.phone)===ADMIN_PHONE&&admin.passcode===ADMIN_PASSCODE;
-  setIsAdmin(ok);
-  setStatus(ok?'Admin open.':'Admin login failed.');
- }
-
- const board=useMemo(()=>[...players].sort((a,b)=>(b.points||0)-(a.points||0)||(b.wins||0)-(a.wins||0)),[players]);
- const upset=matches.find(m=>(m.status||'').toLowerCase()==='final'&&m.winner&&teamChance(m.team_a,m.team_b)[m.winner===m.team_a?0:1]<45);
- const live=matches.filter(m=>(m.status||'').toLowerCase()==='live');
- const upcoming=matches.filter(m=>(m.status||'').toLowerCase()==='scheduled');
- const finals=matches.filter(m=>(m.status||'').toLowerCase()==='final');
- const featured=useMemo(()=>getFeaturedMatches(matches),[matches]);
-
- return <main className="wrap">
-  <section className="hero">
-   <div>
-    <h1>🏆 Lytle Lemon FIFA World Cup Live</h1>
-    <p className="muted">Live family picks, full match board, admin scoring, SMS broadcasts, and leaderboard updates.</p>
-   </div>
-   <div className="heroActions">
-    <button className="ghost" onClick={()=>{setSoundEnabled(true);setStatus('Sound enabled.');beep();}}>🔊 Enable Sound</button>
-    <div className="badge">V1.0 GOLD</div>
-   </div>
-  </section>
-
-  {flash&&<section className="liveFlash">{flash}</section>}
-
-  <section className="espnNow">
-   <div className="espnNowHeader">
-    <span>{featured.label}</span>
-   </div>
-
-   {featured.matches.length?featured.matches.map(m=>
-    <div className="espnNowGame" key={m.id}>
-     <div className="espnNowStatus">
-      {isLiveMatch(m)?<b className="livePulse">● LIVE</b>:<b>NEXT MATCH</b>}
-      {isLiveMatch(m)&&<span>{m.minute||0}'{m.extra_time?` +${m.extra_time}`:''}</span>}
-     </div>
-
-     <div className="espnNowTeams">
-      <div>{m.flag_a} <b>{m.team_a}</b></div>
-      <strong>{m.score_a ?? 0}</strong>
-      <span>vs</span>
-      <strong>{m.score_b ?? 0}</strong>
-      <div>{m.flag_b} <b>{m.team_b}</b></div>
-     </div>
-
-     <div className="espnNowMeta">
-      {m.round} • {m.kickoff}
-     </div>
-    </div>
-   ):(
-    <div className="espnNowEmpty">No live or upcoming matches yet.</div>
-   )}
-  </section>
-
-  <section className="card pickBoard stadium">
-   <h2>🔥 LIVE CENTER</h2>
-   {live.length?live.map(m=><ScoreCard key={m.id} m={m} picks={picks}/>):<p className="muted">No match marked live yet. Admin can set one live below.</p>}
-   {upset&&<div className="locked">🚨 Upset alert: {upset.winner} beat the odds!</div>}
-  </section>
-
-  <div className="grid">
-   <section className="card">
-    <h2>Join / Update Player</h2>
-    <div className="row">
-     <input placeholder="First name" value={form.first_name} onChange={e=>setForm({...form,first_name:e.target.value})}/>
-     <input placeholder="Last name" value={form.last_name} onChange={e=>setForm({...form,last_name:e.target.value})}/>
-    </div>
-    <br/>
-    <div className="row">
-     <input placeholder="U.S. mobile number" value={form.phone} onChange={e=>setForm({...form,phone:e.target.value})}/>
-     <input placeholder="4-digit code" maxLength={4} value={form.player_code} onChange={e=>setForm({...form,player_code:e.target.value.replace(/\D/g,'')})}/>
-    </div>
-    <p className="hint">Same phone + code lets a player update picks anytime.</p>
-    <label className="muted">Tournament team</label>
-    <select value={form.team} onChange={e=>{const t=teams.find(x=>x[0]===e.target.value)!;setForm({...form,team:t[0],flag:t[1]})}}>
-     {teams.map(t=><option key={`${t[0]}-${t[1]}`} value={t[0]}>{t[1]} {t[0]}</option>)}
-    </select>
-    <br/><br/>
-    <button onClick={savePlayer}>Save Player</button>
-    <p className="muted">{status}</p>
-    <div className="invite"><b>Share Link</b><span>{typeof window==='undefined'?'':window.location.origin}</span></div>
-   </section>
-
-   <section className="card fanZone">
-    <h2>💬 Fan Zone</h2>
-    <div className="chatBox">{chat.map(m=><div className="chatMsg" key={m.id}><b>{m.player_name}</b><span>{m.message}</span></div>)}</div>
-    <div className="row">
-     <input placeholder="Talk some friendly trash..." value={chatText} onChange={e=>setChatText(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')sendChat()}}/>
-     <button onClick={sendChat}>Send</button>
-    </div>
-   </section>
-
-   <section className="card">
-    <h2>🏆 Live Leaderboard</h2>
-    <div className="list">
-     {board.map((p,i)=>
-      <div className="item" key={p.id} onClick={()=>setSelectedPlayer(p)} style={{cursor:'pointer'}}>
-       <span>
-        #{i+1} {p.flag} {p.first_name} {p.last_name}
-        <br/>
-        <span className="muted">{p.team} • W {p.wins||0} L {p.losses||0} • Chance to win: {playerChance(p,players)}% • Tap to view picks</span>
-        <div className="meter"><i style={{width:`${playerChance(p,players)}%`}}></i></div>
-       </span>
-       <b>{p.points||0}</b>
-      </div>
-     )}
-    </div>
-   </section>
-  </div>
-
-  <section className="card">
-   <h2>⚽ Make / Change Picks</h2>
-   <button onClick={()=>setStatus("Picks submitted / updated. You can change them anytime in family mode.")}>Submit / Update Picks</button>
-   <br/><br/>
-   {!me&&<p className="locked">Save player first. Then pick every match here.</p>}
-   <div className="bracket">
-    {matches.map(m=>{
-     const pick=me?picks.find(x=>x.participant_id===me.id&&x.match_id===m.id):undefined;
-     return <div className="match" key={m.id}>
-      <div className="row"><b>{m.round}</b><span className="badge">{m.status}</span></div>
-      <p className="muted">{m.kickoff}</p>
-      <div className="team"><span>{m.flag_a} {m.team_a}</span><b>{m.score_a}</b></div>
-      <div className="team"><span>{m.flag_b} {m.team_b}</span><b>{m.score_b}</b></div>
-      {m.winner&&<p className="winnerText">Winner: {m.winner}</p>}
-      <div className="choiceRow">
-       <button className={pick?.selected_team===m.team_a?'selectedChoice':'ghost'} onClick={()=>savePick(m,m.team_a)}>Submit / Update: {m.flag_a} {m.team_a}</button>
-       <button className={pick?.selected_team===m.team_b?'selectedChoice':'ghost'} onClick={()=>savePick(m,m.team_b)}>Submit / Update: {m.flag_b} {m.team_b}</button>
-      </div>
-     </div>
-    })}
-   </div>
-  </section>
-
-  <section className="card bracketCard tvBoard">
-   <h2>📺 ESPN-Style Match Board</h2>
-   <h3>Live</h3>
-   {live.map(m=><ScoreCard key={`l-${m.id}`} m={m} picks={picks}/>)}
-   <h3>Upcoming</h3>
-   {upcoming.map(m=><ScoreCard key={`u-${m.id}`} m={m} picks={picks}/>)}
-   <h3>Finals</h3>
-   {finals.map(m=><ScoreCard key={`f-${m.id}`} m={m} picks={picks}/>)}
-  </section>
-
-  {!isAdmin?
-   <section className="card">
-    <h2>Admin</h2>
-    <div className="row">
-     <input placeholder="Admin mobile" value={admin.phone} onChange={e=>setAdmin({...admin,phone:e.target.value})}/>
-     <input placeholder="Passcode" type="password" value={admin.passcode} onChange={e=>setAdmin({...admin,passcode:e.target.value})}/>
-     <button onClick={login}>Open Admin</button>
-    </div>
-   </section>
-  :
-   <section className="card admin">
-    <h2>Admin Control Center</h2>
-    <h3>Broadcast SMS</h3>
-    <div className="row">
-     <input placeholder="Message everyone" value={broadcast} onChange={e=>setBroadcast(e.target.value)}/>
-     <button onClick={broadcastSMS}>Send SMS</button>
-    </div>
-    <h3>Live Match Updates</h3>
-    <div className="list">{matches.map(m=><AdminMatch key={m.id} m={m} save={updateMatch}/>)}</div>
-   </section>
-  }
-
-  {selectedPlayer&&
-   <div className="modalBackdrop" onClick={()=>setSelectedPlayer(null)}>
-    <div className="modalCard" onClick={e=>e.stopPropagation()}>
-     <button className="ghost" onClick={()=>setSelectedPlayer(null)}>Close</button>
-     <h2>{selectedPlayer.flag} {selectedPlayer.first_name} {selectedPlayer.last_name}'s Picks</h2>
-     <p className="muted">{selectedPlayer.team} • {selectedPlayer.points||0} pts • Chance to win: {playerChance(selectedPlayer,players)}%</p>
-     <div className="locked">🎯 {needText(selectedPlayer,matches,picks)}</div>
-     {(()=>{
-      const r=roadToVictory(selectedPlayer,players,matches,picks);
-      return <div className="roadCard">
-       <h3>🏆 Road to Victory</h3>
-       <p><b>If these happen...</b></p>
-       <ul>{r.needs.map((n,i)=><li key={i}>✅ {n}</li>)}</ul>
-       <p><b>Chance jumps to:</b> {r.jump}%</p>
-       <p><b>Most dangerous opponent:</b> {r.rival?`${r.rival.flag} ${r.rival.first_name}`:"Nobody yet"}</p>
-      </div>
-     })()}
-     <div className="list">
-      {matches.map(m=>{
-       const pick=picks.find(x=>x.participant_id===selectedPlayer.id&&x.match_id===m.id);
-       const correct=m.winner&&pick?.selected_team===m.winner;
-       const wrong=m.winner&&pick&&pick.selected_team!==m.winner;
-       return <div className="item" key={m.id}>
-        <span>
-         <b>{m.flag_a} {m.team_a} {m.score_a} - {m.score_b} {m.flag_b} {m.team_b}</b>
-         <br/>
-         <span className="muted">{m.round} • {m.kickoff} • {m.status}</span>
-         <br/>
-         Pick: {pick?pick.selected_team:'No pick yet'} {correct?'✅':wrong?'❌':''}
-        </span>
-        <b>{m.winner?`Winner: ${m.winner}`:'TBD'}</b>
-       </div>
-      })}
-     </div>
-    </div>
-   </div>
-  }
-
-<div className="footer">
-  <strong>🏆 Lytle Lemon FIFA World Cup Live</strong><br />
-  <span>Version 1.1 – ESPN Live Now</span><br />
-  <span>Created by Lytle Lemon</span><br />
-  <span>Powered by Lytle Lemon Technologies</span><br />
-  <span>Build Date: July 2, 2026</span><br />
-  <span>© 2026 Lytle Lemon Technologies. All Rights Reserved.</span>
-</div>
-  
- return <div className="match">
-  <div className="row"><b>{m.round}</b><span className="badge">{m.status}</span></div>
-  <p className="muted">{m.kickoff}</p>
-  <div className="team"><span>{m.flag_a} {m.team_a}</span><b>{m.score_a}</b></div>
-  <div className="meter"><i style={{width:`${a}%`}}></i></div>
-  <p className="muted">Win chance: {m.team_a} {a}% • Lytle Lemon picks {pa}%</p>
-  <div className="team"><span>{m.flag_b} {m.team_b}</span><b>{m.score_b}</b></div>
-  <div className="meter"><i style={{width:`${b}%`}}></i></div>
-  <p className="muted">Win chance: {m.team_b} {b}% • Lytle Lemon picks {pb}%</p>
-  {isLive&&<p className="winnerText">⏱ {m.minute||0}' {m.extra_time?<span className="extraTime">+{m.extra_time}</span>:null}</p>}
-  {m.highlights_url&&<p><a className="highlightLink" href={m.highlights_url} target="_blank">🎥 Watch Highlights</a></p>}
-  {m.winner&&<p className="winnerText">Winner: {m.winner}</p>}
- </div>
+  return pick
+    ? `Next need: ${pick.selected_team} over ${
+        pick.selected_team === remaining.team_a ? remaining.team_b : remaining.team_a
+      }`
+    : `Needs a pick for ${remaining.team_a} vs ${remaining.team_b}`;
 }
 
-function AdminMatch({m,save}:{m:Match;save:(m:Match,a:number,b:number,s:string,minute:number,highlights_url:string,extra_time?:number)=>void}){
- const[a,setA]=useState(m.score_a||0);
- const[b,setB]=useState(m.score_b||0);
- const[s,setS]=useState(m.status||'scheduled');
- const[min,setMin]=useState(m.minute||0);
- const[extra,setExtra]=useState(m.extra_time||0);
- const[hl,setHl]=useState(m.highlights_url||'');
+function roadToVictory(player: Player, players: Player[], matches: Match[], picks: Pick[]) {
+  const playerPicks = picks.filter((p) => p.participant_id === player.id);
+  const remaining = matches.filter((m) => !isFinalMatch(m));
 
- useEffect(()=>{
-  setA(m.score_a||0);
-  setB(m.score_b||0);
-  setS(m.status||'scheduled');
-  setMin(m.minute||0);
-  setExtra(m.extra_time||0);
-  setHl(m.highlights_url||'');
- },[m]);
+  const needs = remaining.slice(0, 5).map((m) => {
+    const pick = playerPicks.find((p) => p.match_id === m.id);
 
- return <div className="item adminItem">
-  <span>{m.flag_a} {m.team_a} vs {m.flag_b} {m.team_b}<br/><span className="muted">{m.kickoff}</span></span>
-  <div className="statGrid">
-   <input type="number" value={a} onChange={e=>setA(Number(e.target.value))}/>
-   <input type="number" value={b} onChange={e=>setB(Number(e.target.value))}/>
-   <input type="number" placeholder="Minute" value={min} onChange={e=>setMin(Number(e.target.value))}/>
-   <input type="number" placeholder="Extra" value={extra} onChange={e=>setExtra(Number(e.target.value))}/>
-   <select value={s} onChange={e=>setS(e.target.value)}>
-    <option value="scheduled">Scheduled</option>
-    <option value="live">Live</option>
-    <option value="final">Final</option>
-   </select>
-   <input placeholder="Highlights URL" value={hl} onChange={e=>setHl(e.target.value)}/>
-   <button onClick={()=>save(m,a,b,s,min,hl,extra)}>Update</button>
-  </div>
- </div>
+    return pick
+      ? `${pick.selected_team} over ${
+          pick.selected_team === m.team_a ? m.team_b : m.team_a
+        }`
+      : `Pick ${m.team_a} vs ${m.team_b}`;
+  });
+
+  const rivals = [...players]
+    .filter((p) => p.id !== player.id)
+    .sort((a, b) => (b.points || 0) - (a.points || 0));
+
+  const rival = rivals[0];
+  const current = playerChance(player, players);
+  const jump = Math.min(99, current + 20);
+
+  return { needs, rival, jump };
+}
+
+function getFeaturedMatches(matches: Match[]) {
+  const live = matches.filter(isLiveMatch);
+
+  if (live.length) {
+    return {
+      label: 'LLSN LIVE NOW',
+      matches: live,
+    };
+  }
+
+  const next = matches.find(isScheduledMatch);
+
+  return {
+    label: 'LLSN NEXT UP',
+    matches: next ? [next] : [],
+  };
+}
+
+export default function Home() {
+  const [players, setPlayers] = useState<Player[]>([]);
+  const [matches, setMatches] = useState<Match[]>([]);
+  const [picks, setPicks] = useState<Pick[]>([]);
+  const [status, setStatus] = useState('');
+  const [flash, setFlash] = useState('');
+  const [soundEnabled, setSoundEnabled] = useState(false);
+  const [admin, setAdmin] = useState({ phone: '', passcode: '' });
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [broadcast, setBroadcast] = useState('');
+  const [chat, setChat] = useState<any[]>([]);
+  const [chatText, setChatText] = useState('');
+  const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
+  const [form, setForm] = useState({
+    first_name: '',
+    last_name: '',
+    phone: '',
+    player_code: '',
+    team: 'Argentina',
+    flag: '🇦🇷',
+  });
+
+  const audioRef = useRef<AudioContext | null>(null);
+
+  useEffect(() => {
+    load();
+
+    const ch = supabase
+      .channel('llsn-live-broadcast-v14')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'participants' }, liveUpdate)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'wc_matches' }, liveUpdate)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'match_picks' }, liveUpdate)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'fan_messages' }, liveUpdate)
+      .subscribe();
+
+    const timer = setInterval(load, 2500);
+    const onFocus = () => load();
+    const onVisible = () => {
+      if (!document.hidden) load();
+    };
+
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVisible);
+
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVisible);
+      supabase.removeChannel(ch);
+    };
+  }, []);
+
+  function beep() {
+    if (!soundEnabled) return;
+
+    try {
+      const w = window as any;
+      const ctx: AudioContext =
+        audioRef.current ?? new (w.AudioContext || w.webkitAudioContext)();
+
+      audioRef.current = ctx;
+
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+
+      o.frequency.value = 880;
+      o.connect(g);
+      g.connect(ctx.destination);
+      g.gain.setValueAtTime(0.001, ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.2, ctx.currentTime + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+      o.start();
+      o.stop(ctx.currentTime + 0.3);
+    } catch {}
+  }
+
+  async function liveUpdate() {
+    beep();
+    setFlash('⚡ LIVE UPDATE — LLSN broadcast board refreshed');
+    setTimeout(() => setFlash(''), 2200);
+    await load();
+  }
+
+  async function load() {
+    const { data: p, error: pe } = await supabase
+      .from('participants')
+      .select('*')
+      .order('created_at');
+
+    const { data: m, error: me } = await supabase
+      .from('wc_matches')
+      .select('*')
+      .order('id');
+
+    const { data: k, error: ke } = await supabase.from('match_picks').select('*');
+
+    if (pe || me || ke) {
+      setStatus(pe?.message || me?.message || ke?.message || 'Database error');
+      return;
+    }
+
+    setPlayers((p || []) as Player[]);
+    setMatches((m || []) as Match[]);
+    setPicks((k || []) as Pick[]);
+
+    const { data: c } = await supabase
+      .from('fan_messages')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(30);
+
+    setChat((c || []).reverse());
+  }
+
+  const me = players.find(
+    (p) => clean(p.phone) === clean(form.phone) && p.player_code === form.player_code
+  );
+
+  async function savePlayer() {
+    if (
+      !form.first_name ||
+      !form.last_name ||
+      clean(form.phone).length < 10 ||
+      form.player_code.length !== 4
+    ) {
+      setStatus('Enter name, mobile number, and 4-digit code.');
+      return;
+    }
+
+    const phone = clean(form.phone);
+    const existing = players.find(
+      (p) => clean(p.phone) === phone && p.player_code === form.player_code
+    );
+
+    if (existing) {
+      const { error } = await supabase
+        .from('participants')
+        .update({
+          first_name: form.first_name,
+          last_name: form.last_name,
+          team: form.team,
+          flag: form.flag,
+        })
+        .eq('id', existing.id);
+
+      if (error) {
+        setStatus(error.message);
+        return;
+      }
+
+      setStatus('Player updated. Make picks below.');
+    } else {
+      const { error } = await supabase.from('participants').insert({
+        first_name: form.first_name,
+        last_name: form.last_name,
+        phone,
+        player_code: form.player_code,
+        team: form.team,
+        flag: form.flag,
+        points: 0,
+        wins: 0,
+        losses: 0,
+        goals_for: 0,
+        goals_against: 0,
+      });
+
+      if (error) {
+        setStatus(error.message);
+        return;
+      }
+
+      await sendSMS(
+        players.map((p) => p.phone),
+        `${form.first_name} joined Lytle Lemon FIFA World Cup Live as ${form.flag} ${form.team}!`
+      );
+
+      setStatus('Player saved. Make picks below.');
+    }
+
+    await load();
+  }
+
+  async function savePick(m: Match, team: string) {
+    const player = players.find(
+      (p) => clean(p.phone) === clean(form.phone) && p.player_code === form.player_code
+    );
+
+    if (!player) {
+      setStatus('Save player first, or enter the same phone + 4-digit code.');
+      return;
+    }
+
+    const { error } = await supabase.from('match_picks').upsert(
+      {
+        participant_id: player.id,
+        match_id: m.id,
+        selected_team: team,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'participant_id,match_id' }
+    );
+
+    if (error) {
+      setStatus(error.message);
+      return;
+    }
+
+    setStatus(`Pick saved: ${team}`);
+    await load();
+  }
+
+  async function sendChat() {
+    if (!chatText.trim()) return;
+
+    const playerName = me ? `${me.first_name} ${me.last_name}` : 'Fan';
+
+    const { error } = await supabase.from('fan_messages').insert({
+      player_name: playerName,
+      message: chatText.trim(),
+    });
+
+    if (error) {
+      setStatus(error.message);
+      return;
+    }
+
+    setChatText('');
+    await load();
+  }
+
+  async function recalc() {
+    const finals = matches.filter((m) => isFinalMatch(m) && m.winner);
+
+    for (const p of players) {
+      let points = 0;
+      let wins = 0;
+      let losses = 0;
+
+      for (const m of finals) {
+        const pick = picks.find((x) => x.participant_id === p.id && x.match_id === m.id);
+
+        if (!pick) continue;
+
+        if (pick.selected_team === m.winner) {
+          points += 3;
+          wins++;
+        } else {
+          losses++;
+        }
+      }
+
+      await supabase.from('participants').update({ points, wins, losses }).eq('id', p.id);
+    }
+
+    await load();
+  }
+
+  async function updateMatch(
+    m: Match,
+    a: number,
+    b: number,
+    st: string,
+    minute: number = 0,
+    highlights_url: string = '',
+    extra_time: number = 0
+  ) {
+    const winner = st === 'final' && a !== b ? (a > b ? m.team_a : m.team_b) : null;
+
+    const { error } = await supabase
+      .from('wc_matches')
+      .update({
+        score_a: a,
+        score_b: b,
+        status: st,
+        winner,
+        minute,
+        extra_time,
+        highlights_url,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', m.id);
+
+    if (error) {
+      setStatus(error.message);
+      return;
+    }
+
+    await sendSMS(
+      players.map((p) => p.phone),
+      `LLSN LIVE UPDATE: ${m.flag_a} ${m.team_a} ${a}-${b} ${m.flag_b} ${m.team_b}${
+        winner ? `. Winner: ${winner}` : ''
+      }`
+    );
+
+    await recalc();
+    setStatus('Match updated. Leaderboard recalculated.');
+  }
+
+  async function broadcastSMS() {
+    if (!broadcast.trim()) return;
+
+    await sendSMS(players.map((p) => p.phone), `LLSN BROADCAST: ${broadcast}`);
+
+    setBroadcast('');
+    setStatus('Broadcast sent if Twilio is configured.');
+  }
+
+  function login() {
+    const ok = clean(admin.phone) === ADMIN_PHONE && admin.passcode === ADMIN_PASSCODE;
+    setIsAdmin(ok);
+    setStatus(ok ? 'Admin open.' : 'Admin login failed.');
+  }
+
+  const board = useMemo(
+    () =>
+      [...players].sort(
+        (a, b) => (b.points || 0) - (a.points || 0) || (b.wins || 0) - (a.wins || 0)
+      ),
+    [players]
+  );
+
+  const live = matches.filter(isLiveMatch);
+  const upcoming = matches.filter(isScheduledMatch);
+  const finals = matches.filter(isFinalMatch);
+  const featured = useMemo(() => getFeaturedMatches(matches), [matches]);
+
+  const upset = matches.find(
+    (m) =>
+      isFinalMatch(m) &&
+      m.winner &&
+      teamChance(m.team_a, m.team_b)[m.winner === m.team_a ? 0 : 1] < 45
+  );
+
+  const tickerItems = [
+    live.length ? `🔴 LIVE: ${live[0].team_a} vs ${live[0].team_b}` : null,
+    board[0] ? `🏆 Leader: ${board[0].flag} ${board[0].first_name} with ${board[0].points || 0} pts` : null,
+    upcoming[0] ? `⏭ Next: ${upcoming[0].team_a} vs ${upcoming[0].team_b} • ${upcoming[0].kickoff}` : null,
+    upset ? `🚨 Upset Alert: ${upset.winner} shocked the board` : null,
+    `📺 Welcome to Lytle Lemon Sports Network`,
+  ].filter(Boolean);
+
+  return (
+    <main className="wrap">
+      <section className="hero">
+        <div>
+          <h1>🏆 Lytle Lemon Sports Network</h1>
+          <p className="muted">
+            Vegas-style live board, family picks, match center, admin scoring, SMS broadcasts,
+            and leaderboard updates.
+          </p>
+        </div>
+
+        <div className="heroActions">
+          <button
+            className="ghost"
+            onClick={() => {
+              setSoundEnabled(true);
+              setStatus('Sound enabled.');
+              beep();
+            }}
+          >
+            🔊 Enable Sound
+          </button>
+
+          <div className="badge">V1.4 LIVE</div>
+        </div>
+      </section>
+
+      {flash && <section className="liveFlash">{flash}</section>}
+
+      <section className="espnNow">
+        <div className="espnNowHeader">
+          <span>{featured.label}</span>
+          <span>LYTLE LEMON SPORTSBOOK</span>
+        </div>
+
+        {featured.matches.length ? (
+          featured.matches.map((m) => (
+            <div className="espnNowGame" key={m.id}>
+              <div className="espnNowStatus">
+                {isLiveMatch(m) ? <b className="livePulse">● LIVE</b> : <b>NEXT MATCH</b>}
+                {isLiveMatch(m) && (
+                  <span>
+                    {m.minute || 0}'{m.extra_time ? ` +${m.extra_time}` : ''}
+                  </span>
+                )}
+              </div>
+
+              <div className="espnNowTeams">
+                <div>
+                  {m.flag_a} <b>{m.team_a}</b>
+                </div>
+                <strong>{m.score_a ?? 0}</strong>
+                <span>vs</span>
+                <strong>{m.score_b ?? 0}</strong>
+                <div>
+                  {m.flag_b} <b>{m.team_b}</b>
+                </div>
+              </div>
+
+              <div className="espnNowMeta">
+                {m.round} • {m.kickoff}
+              </div>
+            </div>
+          ))
+        ) : (
+          <div className="espnNowEmpty">No live or upcoming matches yet.</div>
+        )}
+      </section>
+
+      <section className="card pickBoard stadium">
+        <h2>🔥 LIVE CENTER</h2>
+        {live.length ? (
+          live.map((m) => <ScoreCard key={m.id} m={m} picks={picks} />)
+        ) : (
+          <p className="muted">No match marked live yet. Admin can set one live below.</p>
+        )}
+
+        {upset && <div className="locked">🚨 Upset alert: {upset.winner} beat the odds!</div>}
+      </section>
+
+      <div className="grid">
+        <section className="card">
+          <h2>Join / Update Player</h2>
+
+          <div className="row">
+            <input
+              placeholder="First name"
+              value={form.first_name}
+              onChange={(e) => setForm({ ...form, first_name: e.target.value })}
+            />
+            <input
+              placeholder="Last name"
+              value={form.last_name}
+              onChange={(e) => setForm({ ...form, last_name: e.target.value })}
+            />
+          </div>
+
+          <br />
+
+          <div className="row">
+            <input
+              placeholder="U.S. mobile number"
+              value={form.phone}
+              onChange={(e) => setForm({ ...form, phone: e.target.value })}
+            />
+            <input
+              placeholder="4-digit code"
+              maxLength={4}
+              value={form.player_code}
+              onChange={(e) =>
+                setForm({ ...form, player_code: e.target.value.replace(/\D/g, '') })
+              }
+            />
+          </div>
+
+          <p className="hint">Same phone + code lets a player update picks anytime.</p>
+
+          <label className="muted">Tournament team</label>
+          <select
+            value={form.team}
+            onChange={(e) => {
+              const t = teams.find((x) => x[0] === e.target.value)!;
+              setForm({ ...form, team: t[0], flag: t[1] });
+            }}
+          >
+            {teams.map((t) => (
+              <option key={`${t[0]}-${t[1]}`} value={t[0]}>
+                {t[1]} {t[0]}
+              </option>
+            ))}
+          </select>
+
+          <br />
+          <br />
+
+          <button onClick={savePlayer}>Save Player</button>
+
+          <p className="muted">{status}</p>
+
+          <div className="invite">
+            <b>Share Link</b>
+            <span>{typeof window === 'undefined' ? '' : window.location.origin}</span>
+          </div>
+        </section>
+
+        <section className="card fanZone">
+          <h2>💬 Fan Zone</h2>
+
+          <div className="chatBox">
+            {chat.map((m) => (
+              <div className="chatMsg" key={m.id}>
+                <b>{m.player_name}</b>
+                <span>{m.message}</span>
+              </div>
+            ))}
+          </div>
+
+          <div className="row">
+            <input
+              placeholder="Talk some friendly trash..."
+              value={chatText}
+              onChange={(e) => setChatText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') sendChat();
+              }}
+            />
+            <button onClick={sendChat}>Send</button>
+          </div>
+        </section>
+
+        <section className="card">
+          <h2>🏆 Live Leaderboard</h2>
+
+          <div className="list">
+            {board.map((p, i) => (
+              <div
+                className="item"
+                key={p.id}
+                onClick={() => setSelectedPlayer(p)}
+                style={{ cursor: 'pointer' }}
+              >
+                <span>
+                  #{i + 1} {p.flag} {p.first_name} {p.last_name}
+                  <br />
+                  <span className="muted">
+                    {p.team} • W {p.wins || 0} L {p.losses || 0} • Chance to win:{' '}
+                    {playerChance(p, players)}% • Tap to view picks
+                  </span>
+                  <div className="meter">
+                    <i style={{ width: `${playerChance(p, players)}%` }}></i>
+                  </div>
+                </span>
+                <b>{p.points || 0}</b>
+              </div>
+            ))}
+          </div>
+        </section>
+      </div>
+
+      <section className="card">
+        <h2>⚽ Make / Change Picks</h2>
+
+        <button onClick={() => setStatus('Picks submitted / updated.')}>
+          Submit / Update Picks
+        </button>
+
+        <br />
+        <br />
+
+        {!me && <p className="locked">Save player first. Then pick every match here.</p>}
+
+        <div className="bracket">
+          {matches.map((m) => {
+            const pick = me
+              ? picks.find((x) => x.participant_id === me.id && x.match_id === m.id)
+              : undefined;
+
+            return (
+              <div className="match" key={m.id}>
+                <div className="row">
+                  <b>{m.round}</b>
+                  <span className="badge">{isLiveMatch(m) ? '🔴 LIVE' : m.status}</span>
+                </div>
+
+                <p className="muted">{m.kickoff}</p>
+
+                <div className="team">
+                  <span>
+                    {m.flag_a} {m.team_a}
+                  </span>
+                  <b>{m.score_a ?? 0}</b>
+                </div>
+
+                <div className="team">
+                  <span>
+                    {m.flag_b} {m.team_b}
+                  </span>
+                  <b>{m.score_b ?? 0}</b>
+                </div>
+
+                {m.winner && <p className="winnerText">Winner: {m.winner}</p>}
+
+                <div className="choiceRow">
+                  <button
+                    className={pick?.selected_team === m.team_a ? 'selectedChoice' : 'ghost'}
+                    onClick={() => savePick(m, m.team_a)}
+                  >
+                    Submit / Update: {m.flag_a} {m.team_a}
+                  </button>
+
+                  <button
+                    className={pick?.selected_team === m.team_b ? 'selectedChoice' : 'ghost'}
+                    onClick={() => savePick(m, m.team_b)}
+                  >
+                    Submit / Update: {m.flag_b} {m.team_b}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="card bracketCard tvBoard">
+        <h2>📺 LLSN Match Board</h2>
+
+        <h3>🔴 Live</h3>
+        {live.length ? (
+          live.map((m) => <ScoreCard key={`l-${m.id}`} m={m} picks={picks} />)
+        ) : (
+          <p className="muted">No live matches right now.</p>
+        )}
+
+        <h3>⏭ Upcoming</h3>
+        {upcoming.map((m) => (
+          <ScoreCard key={`u-${m.id}`} m={m} picks={picks} />
+        ))}
+
+        <h3>✅ Finals</h3>
+        {finals.map((m) => (
+          <ScoreCard key={`f-${m.id}`} m={m} picks={picks} />
+        ))}
+      </section>
+
+      {!isAdmin ? (
+        <section className="card">
+          <h2>Admin</h2>
+
+          <div className="row">
+            <input
+              placeholder="Admin mobile"
+              value={admin.phone}
+              onChange={(e) => setAdmin({ ...admin, phone: e.target.value })}
+            />
+            <input
+              placeholder="Passcode"
+              type="password"
+              value={admin.passcode}
+              onChange={(e) => setAdmin({ ...admin, passcode: e.target.value })}
+            />
+            <button onClick={login}>Open Admin</button>
+          </div>
+        </section>
+      ) : (
+        <section className="card admin">
+          <h2>Admin Control Center</h2>
+
+          <h3>Broadcast SMS</h3>
+
+          <div className="row">
+            <input
+              placeholder="Message everyone"
+              value={broadcast}
+              onChange={(e) => setBroadcast(e.target.value)}
+            />
+            <button onClick={broadcastSMS}>Send SMS</button>
+          </div>
+
+          <h3>Live Match Updates</h3>
+
+          <div className="list">
+            {matches.map((m) => (
+              <AdminMatch key={m.id} m={m} save={updateMatch} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {selectedPlayer && (
+        <div className="modalBackdrop" onClick={() => setSelectedPlayer(null)}>
+          <div className="modalCard" onClick={(e) => e.stopPropagation()}>
+            <button className="ghost" onClick={() => setSelectedPlayer(null)}>
+              Close
+            </button>
+
+            <h2>
+              {selectedPlayer.flag} {selectedPlayer.first_name} {selectedPlayer.last_name}'s
+              Picks
+            </h2>
+
+            <p className="muted">
+              {selectedPlayer.team} • {selectedPlayer.points || 0} pts • Chance to win:{' '}
+              {playerChance(selectedPlayer, players)}%
+            </p>
+
+            <div className="locked">🎯 {needText(selectedPlayer, matches, picks)}</div>
+
+            {(() => {
+              const r = roadToVictory(selectedPlayer, players, matches, picks);
+
+              return (
+                <div className="roadCard">
+                  <h3>🏆 Road to Victory</h3>
+                  <p>
+                    <b>If these happen...</b>
+                  </p>
+                  <ul>
+                    {r.needs.map((n, i) => (
+                      <li key={i}>✅ {n}</li>
+                    ))}
+                  </ul>
+                  <p>
+                    <b>Chance jumps to:</b> {r.jump}%
+                  </p>
+                  <p>
+                    <b>Most dangerous opponent:</b>{' '}
+                    {r.rival ? `${r.rival.flag} ${r.rival.first_name}` : 'Nobody yet'}
+                  </p>
+                </div>
+              );
+            })()}
+
+            <div className="list">
+              {matches.map((m) => {
+                const pick = picks.find(
+                  (x) => x.participant_id === selectedPlayer.id && x.match_id === m.id
+                );
+                const correct = m.winner && pick?.selected_team === m.winner;
+                const wrong = m.winner && pick && pick.selected_team !== m.winner;
+
+                return (
+                  <div className="item" key={m.id}>
+                    <span>
+                      <b>
+                        {m.flag_a} {m.team_a} {m.score_a ?? 0} - {m.score_b ?? 0}{' '}
+                        {m.flag_b} {m.team_b}
+                      </b>
+                      <br />
+                      <span className="muted">
+                        {m.round} • {m.kickoff} • {m.status}
+                      </span>
+                      <br />
+                      Pick: {pick ? pick.selected_team : 'No pick yet'}{' '}
+                      {correct ? '✅' : wrong ? '❌' : ''}
+                    </span>
+                    <b>{m.winner ? `Winner: ${m.winner}` : 'TBD'}</b>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <section className="liveFlash">
+        {tickerItems.join('     •     ')}
+      </section>
+
+      <div className="footer">
+        <strong>🏆 Lytle Lemon Sports Network</strong>
+        <br />
+        <span>Version 1.4 — Vegas Broadcast Mode</span>
+        <br />
+        <span>Created by Lytle Lemon</span>
+        <br />
+        <span>Powered by Lytle Lemon Technologies</span>
+        <br />
+        <span>Build Date: July 4, 2026</span>
+        <br />
+        <span>© 2026 Lytle Lemon Technologies. All Rights Reserved.</span>
+      </div>
+    </main>
+  );
+}
+
+function ScoreCard({ m, picks }: { m: Match; picks: Pick[] }) {
+  const [a, b] = teamChance(m.team_a, m.team_b);
+  const total = picks.filter((p) => p.match_id === m.id).length;
+  const pa = pct(
+    picks.filter((p) => p.match_id === m.id && p.selected_team === m.team_a).length,
+    total
+  );
+  const pb = pct(
+    picks.filter((p) => p.match_id === m.id && p.selected_team === m.team_b).length,
+    total
+  );
+  const isLive = isLiveMatch(m);
+
+  return (
+    <div className="match">
+      <div className="row">
+        <b>{m.round}</b>
+        <span className="badge">{isLive ? '🔴 LIVE' : m.status}</span>
+      </div>
+
+      <p className="muted">{m.kickoff}</p>
+
+      <div className="team">
+        <span>
+          {m.flag_a} {m.team_a}
+        </span>
+        <b>{m.score_a ?? 0}</b>
+      </div>
+
+      <div className="meter">
+        <i style={{ width: `${a}%` }}></i>
+      </div>
+
+      <p className="muted">
+        Win chance: {m.team_a} {a}% • Lytle Lemon picks {pa}%
+      </p>
+
+      <div className="team">
+        <span>
+          {m.flag_b} {m.team_b}
+        </span>
+        <b>{m.score_b ?? 0}</b>
+      </div>
+
+      <div className="meter">
+        <i style={{ width: `${b}%` }}></i>
+      </div>
+
+      <p className="muted">
+        Win chance: {m.team_b} {b}% • Lytle Lemon picks {pb}%
+      </p>
+
+      {isLive && (
+        <p className="winnerText">
+          ⏱ {m.minute || 0}'{' '}
+          {m.extra_time ? <span className="extraTime">+{m.extra_time}</span> : null}
+        </p>
+      )}
+
+      {m.highlights_url && (
+        <p>
+          <a className="highlightLink" href={m.highlights_url} target="_blank">
+            🎥 Watch Highlights
+          </a>
+        </p>
+      )}
+
+      {m.winner && <p className="winnerText">Winner: {m.winner}</p>}
+    </div>
+  );
+}
+
+function AdminMatch({
+  m,
+  save,
+}: {
+  m: Match;
+  save: (
+    m: Match,
+    a: number,
+    b: number,
+    s: string,
+    minute: number,
+    highlights_url: string,
+    extra_time?: number
+  ) => void;
+}) {
+  const [a, setA] = useState(m.score_a || 0);
+  const [b, setB] = useState(m.score_b || 0);
+  const [s, setS] = useState(m.status || 'scheduled');
+  const [min, setMin] = useState(m.minute || 0);
+  const [extra, setExtra] = useState(m.extra_time || 0);
+  const [hl, setHl] = useState(m.highlights_url || '');
+
+  useEffect(() => {
+    setA(m.score_a || 0);
+    setB(m.score_b || 0);
+    setS(m.status || 'scheduled');
+    setMin(m.minute || 0);
+    setExtra(m.extra_time || 0);
+    setHl(m.highlights_url || '');
+  }, [m]);
+
+  return (
+    <div className="item adminItem">
+      <span>
+        {m.flag_a} {m.team_a} vs {m.flag_b} {m.team_b}
+        <br />
+        <span className="muted">{m.kickoff}</span>
+      </span>
+
+      <div className="statGrid">
+        <input type="number" value={a} onChange={(e) => setA(Number(e.target.value))} />
+        <input type="number" value={b} onChange={(e) => setB(Number(e.target.value))} />
+        <input
+          type="number"
+          placeholder="Minute"
+          value={min}
+          onChange={(e) => setMin(Number(e.target.value))}
+        />
+        <input
+          type="number"
+          placeholder="Extra"
+          value={extra}
+          onChange={(e) => setExtra(Number(e.target.value))}
+        />
+        <select value={s} onChange={(e) => setS(e.target.value)}>
+          <option value="scheduled">Scheduled</option>
+          <option value="live">Live</option>
+          <option value="final">Final</option>
+        </select>
+        <input
+          placeholder="Highlights URL"
+          value={hl}
+          onChange={(e) => setHl(e.target.value)}
+        />
+        <button onClick={() => save(m, a, b, s, min, hl, extra)}>Update</button>
+      </div>
+    </div>
+  );
 }
