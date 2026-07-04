@@ -463,7 +463,7 @@ export default function Home() {
 
       await sendSMS(
         players.map((player) => player.phone),
-        `${form.first_name} joined Lytle Lemon FIFA World Cup Live as ${form.flag} ${form.team}!`
+        `${form.first_name} joined Corby's Workshop LLC as ${form.flag} ${form.team}!`
       );
 
       setStatus('Player saved. Make picks below.');
@@ -814,7 +814,7 @@ export default function Home() {
 
           <div className="invite">
             <b>Share Link</b>
-            <span>"Lytle Lemon FIFA World Cup Live"</span>
+            <span>"Corby's Workshop LLC"</span>
           </div>
         </section>
       </div>
@@ -964,11 +964,11 @@ export default function Home() {
       )}
 
       <footer className="footer">
-        <strong>🏆 Lytle Lemon Sports Network</strong>
+        <strong>🏆 Corby's Workshop Live</strong>
         <span>FIFA 1.5 FINAL — Vegas Broadcast Edition</span>
         <span>🇺🇸 Built in America by Corby’s Workshop™</span>
         <span>Technology should serve humanity—not the other way around.</span>
-        <span>Powered by Lytle Lemon Technologies</span>
+        <span>Powered by Corby's Workshop Technologies</span>
         <span>© 2026 Corby’s Workshop™. All Rights Reserved.</span>
       </footer>
     </main>
@@ -1008,7 +1008,7 @@ function BroadcastHero({
           <span>🇺🇸 Corby’s Workshop™</span>
           <span>LLSN FINAL BROADCAST</span>
         </div>
-        <h1>Lytle Lemon Sports Network</h1>
+        <h1>Corby's Workshop Live</h1>
         <p>Vegas Broadcast Mode Ready</p>
       </section>
     );
@@ -1024,7 +1024,7 @@ function BroadcastHero({
       <div className="heroTop">
         <div>
           <p className="eyebrow">{liveCount ? '🔴 LIVE NOW' : '⏭ NEXT UP'}</p>
-          <h1>Lytle Lemon Sports Network</h1>
+          <h1>Corby's Workshop Live</h1>
           <p className="subline">Technology should serve humanity—not the other way around.</p>
         </div>
 

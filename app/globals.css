@@ -552,3 +552,44 @@ input, select, textarea {
   margin-top: 8px;
   opacity: .85;
 }
+
+/* CORBY'S WORKSHOP FINAL BRANDING */
+body::before {
+  content: "🇺🇸  CORBY'S WORKSHOP LLC  🇨🇦";
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 9999;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(90deg,#071a3a,#b00020,#071a3a);
+  color: #fff;
+  font-weight: 1000;
+  letter-spacing: .22em;
+  font-size: 13px;
+  border-bottom: 2px solid rgba(255,255,255,.25);
+  box-shadow: 0 0 32px rgba(255,255,255,.22);
+}
+
+body {
+  padding-top: 42px !important;
+}
+
+h1::before {
+  content: "🇺🇸 ";
+}
+
+h1::after {
+  content: " 🇨🇦";
+}
+
+.footer {
+  font-weight: 900 !important;
+}
+
+.footer::before {
+  content: "Built by Corby's Workshop LLC • American born • Canadian roots • ";
+}
