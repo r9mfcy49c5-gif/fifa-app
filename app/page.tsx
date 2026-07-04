@@ -672,7 +672,7 @@ export default function Home() {
           {liveMatches.length ? (
             liveMatches.map((match) => <GameCard key={match.id} match={match} picks={picks} />)
           ) : (
-            <p className="muted">No match is live right now. Admin can set a match live below.</p>
+            <p className="muted">No live match selected yet. Admin can light up the board when the first match starts.</p>
           )}
 
           {upset && <div className="alert">🚨 Upset alert: {upset.winner} beat the odds!</div>}
@@ -706,7 +706,7 @@ export default function Home() {
                 </button>
               ))
             ) : (
-              <p className="muted">No players yet.</p>
+              <p className="muted">Waiting for players to join.</p>
             )}
           </div>
         </section>
@@ -721,7 +721,7 @@ export default function Home() {
             {upcomingMatches.length ? (
               upcomingMatches.map((match) => <UpcomingCard key={match.id} match={match} />)
             ) : (
-              <p className="muted">No upcoming matches.</p>
+              <p className="muted">Match schedule ready.</p>
             )}
           </div>
         </section>
@@ -741,7 +741,7 @@ export default function Home() {
                 </div>
               ))
             ) : (
-              <p className="muted">No fan messages yet.</p>
+              <p className="muted">Fan Zone ready.</p>
             )}
           </div>
 
@@ -1009,7 +1009,7 @@ function BroadcastHero({
           <span>LLSN FINAL BROADCAST</span>
         </div>
         <h1>Lytle Lemon Sports Network</h1>
-        <p>No matches loaded yet.</p>
+        <p>Vegas Broadcast Mode Ready</p>
       </section>
     );
   }

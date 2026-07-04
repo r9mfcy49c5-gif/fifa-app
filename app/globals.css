@@ -500,3 +500,55 @@ h1{
   .gameScore{grid-template-columns:1fr}
   .gameScore div,.gameScore div:last-child{text-align:center;align-items:center}
 }
+
+/* FINAL VEGAS BROADCAST POLISH */
+body {
+  background:
+    radial-gradient(circle at top left, #113a78 0%, transparent 32%),
+    radial-gradient(circle at top right, #8b0018 0%, transparent 30%),
+    linear-gradient(135deg, #020611 0%, #050b18 48%, #120008 100%) !important;
+}
+
+.hero, .broadcastHero, .panel {
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,.08),
+    0 24px 80px rgba(0,0,0,.55),
+    inset 0 0 60px rgba(255,255,255,.04) !important;
+}
+
+h1, .hero h1 {
+  text-shadow:
+    0 0 18px rgba(255,255,255,.35),
+    0 0 44px rgba(0,174,255,.28) !important;
+}
+
+.ticker, .missionTicker {
+  box-shadow: 0 0 30px rgba(255, 210, 0, .35) !important;
+  border: 1px solid rgba(255,255,255,.2) !important;
+}
+
+.badge, button {
+  text-transform: uppercase !important;
+  letter-spacing: .12em !important;
+  font-weight: 900 !important;
+}
+
+button {
+  background: linear-gradient(135deg, #ffe600, #24e66d, #00a7ff) !important;
+  color: #020611 !important;
+  border: 0 !important;
+  box-shadow: 0 0 22px rgba(0,200,255,.24) !important;
+}
+
+input, select, textarea {
+  background: rgba(0,0,0,.42) !important;
+  border: 1px solid rgba(255,255,255,.16) !important;
+  color: #fff !important;
+}
+
+.footer::after {
+  content: " 🇺🇸  Corby's Workshop LLC  🇨🇦";
+  display: block;
+  margin-top: 8px;
+  opacity: .85;
+}
