@@ -53,7 +53,8 @@ export default function Home(){
 
  async function savePlayer(){
   if(!form.first_name.trim())return setStatus('Enter first name.');
-  const {data,error}=await supabase.from('participants').insert(form).select().single();
+  const player_code=`${form.first_name.trim().toUpperCase()}-${Math.floor(1000+Math.random()*9000)}`;
+  const {data,error}=await supabase.from('participants').insert({...form,player_code}).select().single();
   if(error)return setStatus(error.message);
   setMe(data as Player); setStatus('Player saved. Make your picks.');
   await load();
