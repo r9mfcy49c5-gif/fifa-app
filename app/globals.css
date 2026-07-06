@@ -7,3 +7,79 @@
 .pickLine{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;padding:10px;border:1px solid #ffffff1f;border-radius:12px;background:#0008}
 .pickLine small{display:block;color:#9fb0c6}
 .pickLine button{font-size:13px;padding:9px 12px}
+
+/* CORBY PERFECT — COSMO SPORTSBOOK POLISH */
+.mast{
+  background:
+    linear-gradient(90deg,#05070b,#111827 42%,#05070b)!important;
+  border:1px solid #d7b85b99!important;
+  box-shadow:
+    0 0 55px #000,
+    0 0 35px #d7b85b22,
+    inset 0 0 40px #ffffff08!important;
+}
+.workshop b{
+  color:#f2d27a!important;
+  font-size:22px!important;
+  letter-spacing:.08em!important;
+}
+.workshop em{
+  font-family:Arial,Helvetica,sans-serif!important;
+  color:#9fb0c6!important;
+  font-size:13px!important;
+  letter-spacing:.22em!important;
+  text-transform:uppercase!important;
+}
+.title h1{
+  text-shadow:
+    0 0 12px #ffffff88,
+    0 0 28px #d7b85b66!important;
+}
+.title i{
+  color:#e21b3c!important;
+  text-shadow:0 0 22px #e21b3c88!important;
+}
+.vegas{
+  color:#f2d27a!important;
+  border-color:#f2d27a88!important;
+  background:linear-gradient(180deg,#111827,#05070b)!important;
+  text-shadow:0 0 18px #d7b85b55!important;
+}
+.panel,.mainEvent,.stats,.myPicks,.card{
+  background:
+    linear-gradient(180deg,#111827ee,#05070bee)!important;
+  border-color:#d7b85b55!important;
+  box-shadow:
+    0 18px 50px #000b,
+    inset 0 0 28px #ffffff07!important;
+}
+.panel h2,.stats h2,.myPicks h2{
+  color:#f2d27a!important;
+  letter-spacing:.06em!important;
+}
+.liveTag{
+  background:linear-gradient(135deg,#b90f2d,#ff3358)!important;
+  box-shadow:0 0 22px #e21b3c77!important;
+}
+.score strong,.clock,.rank b,.stats article b{
+  color:#f2d27a!important;
+  text-shadow:0 0 24px #d7b85b55!important;
+}
+button,.bigBtn{
+  background:linear-gradient(135deg,#d7b85b,#f6dc8a)!important;
+  color:#05070b!important;
+  box-shadow:0 0 18px #d7b85b33!important;
+}
+button:hover,.bigBtn:hover{
+  transform:translateY(-1px) scale(1.02);
+}
+.ticker{
+  border-color:#d7b85b99!important;
+  background:#02030a!important;
+}
+.ticker b{
+  background:linear-gradient(135deg,#9d0b22,#e21b3c)!important;
+}
+footer{
+  color:#9fb0c6!important;
+}

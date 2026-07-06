@@ -36,9 +36,9 @@ export default function Home(){
 
  return <main className="screen">
   <header className="mast">
-   <div className="workshop"><small>PRESENTED BY</small><b>CORBY’S WORKSHOP LLC</b><em>Shannon Approved</em></div>
-   <div className="title"><span>LYTLE LEMON</span><h1>FIFA WORLD CUP <i>LIVE</i></h1><p>FAMILY • COMPETITION • MEMORIES</p></div>
-   <div className="vegas">VEGAS <i>LIVE</i><small>SERVICE • FAMILY • FOOTBALL</small></div>
+   <div className="workshop"><small>PRESENTED BY</small><b>CORBY’S WORKSHOP LLC</b><em>Live Sports Studio</em></div>
+   <div className="title"><span>LYTLE LEMON</span><h1>FIFA WORLD CUP <i>LIVE</i></h1><p>LIVE PICKS • SPORTSBOOK ENERGY • PRIVATE COMPETITION</p></div>
+   <div className="vegas">VEGAS <i>LIVE</i><small>LIVE • ODDS • PICKS</small></div>
   </header>
 
   <section className="ticker"><b>LIVE TICKER</b><span>{live.length?live.map(m=>`⚽ ${m.flag_a} ${m.team_a} ${m.score_a}-${m.score_b} ${m.flag_b} ${m.team_b} ${m.minute||0}'`).join('  ⚡  '):'⚡ No live match marked. Admin can set one live.'}</span></section>
@@ -74,6 +74,6 @@ export default function Home(){
     <a className="bigBtn" href="/admin">Admin Control Room</a>
    </aside>
   </div>
-  <footer>BUILT IN CORBY’S WORKSHOP LLC • SHANNON APPROVED • CW</footer>
+  <footer>BUILT IN CORBY’S WORKSHOP LLC • LIVE SPORTS STUDIO • CW</footer>
  </main>
 }
