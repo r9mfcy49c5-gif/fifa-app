@@ -42,8 +42,13 @@ export default function Home(){
   return()=>{clearInterval(timer);supabase.removeChannel(ch)}
  },[]);
 
- const live=matches.filter(m=>m.status==='live');
- const featured=live[0]||matches.find(m=>m.status==='scheduled')||matches[0];
+ const now=Date.now();
+ const today=new Date().toISOString().slice(0,10);
+ const isToday=(m:Match)=>String(m.kickoff||'').slice(0,10)===today;
+ const isFuture=(m:Match)=>new Date(m.kickoff).getTime()>=now-1000*60*30;
+ const live=matches.filter(m=>m.status==='live'&&isToday(m));
+ const upcoming=matches.filter(m=>m.status==='scheduled'&&isFuture(m));
+ const featured=live[0]||upcoming[0];
  const board=useMemo(()=>[...players].sort((a,b)=>(b.points||0)-(a.points||0)),[players]);
 
  async function savePlayer(){
@@ -70,7 +75,7 @@ export default function Home(){
 
  return <main className="stage">
   <header className="top">
-   <div className="tiny">Corby & Shannon&apos;s Workshop presents</div>
+   <div className="tiny">Corby&apos;s Workshop LLC Presents</div>
    <h1>Lytle Lemon FIFA World Cup Live</h1>
    <div className="sub">One screen. Live family picks. Big-game energy.</div>
   </header>
@@ -89,7 +94,7 @@ export default function Home(){
    </>:<p>No matches loaded.</p>}
   </section>
 
-  <section className="ticker">⚡ {live.length?live.map(m=>`${m.team_a} ${m.score_a}-${m.score_b} ${m.team_b}`).join('  •  '):'No live game marked yet.'}</section>
+  <section className="ticker">⚡ {live.length?live.map(m=>`${m.team_a} ${m.score_a}-${m.score_b} ${m.team_b}`).join('  •  '):upcoming.length?`Next: ${upcoming[0].team_a} vs ${upcoming[0].team_b} • ${upcoming[0].kickoff}`:'No live or upcoming match loaded.'}</section>
 
   <div className="grid">
    <section className="card">
@@ -128,6 +133,6 @@ export default function Home(){
    </section>
   </div>
 
-  <footer>Built in Corby & Shannon&apos;s Workshop • v1.5 Gold</footer>
+  <footer>Built by Corby&apos;s Workshop LLC • v1.5 Gold</footer>
  </main>
 }
