@@ -151,13 +151,18 @@ export default function Home(){
    </section>
 
    <section className="card wide">
-    <h2>⚽ Make / Change Picks</h2>
-    <div className="matches">{matches.map(m=>{
+    <h2>⚽ Pick The Rest Of The Way</h2>
+    <p className="status">Final games are locked. Upcoming games stay open.</p>
+    <div className="matches">{sortedMatches.filter(m=>statusOf(m)!=='final').map(m=>{
      const mine=me?picks.find(p=>p.participant_id===me.id&&p.match_id===m.id):undefined;
      return <div className="match" key={m.id}>
       <b>{m.flag_a} {m.team_a} {m.score_a}-{m.score_b} {m.flag_b} {m.team_b}</b>
       <small>{m.round} • {statusOf(m)} • {m.kickoff}</small>
-      <div><button className={mine?.selected_team===m.team_a?'sel':''} onClick={()=>pick(m,m.team_a)}>{m.team_a}</button><button className={mine?.selected_team===m.team_b?'sel':''} onClick={()=>pick(m,m.team_b)}>{m.team_b}</button></div>
+      <div>
+       <button className={mine?.selected_team===m.team_a?'sel':''} onClick={()=>pick(m,m.team_a)}>{m.team_a}</button>
+       <button className={mine?.selected_team===m.team_b?'sel':''} onClick={()=>pick(m,m.team_b)}>{m.team_b}</button>
+      </div>
+      {mine?<small>✅ Your pick: {mine.selected_team}</small>:<small>Pick still needed</small>}
      </div>
     })}</div>
    </section>
