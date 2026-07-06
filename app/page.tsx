@@ -43,14 +43,19 @@ export default function Home(){
  },[]);
 
  const now=Date.now();
+ const FOUR_HOURS=1000*60*60*4;
  const sortedMatches=[...matches].sort((a,b)=>new Date(a.kickoff).getTime()-new Date(b.kickoff).getTime());
- const live=sortedMatches.filter(m=>String(m.status).toLowerCase()==='live');
- const upcoming=sortedMatches.filter(m=>{
-  const t=new Date(m.kickoff).getTime();
-  const status=String(m.status).toLowerCase();
-  return t>=now-1000*60*45 && !['final','complete','completed'].includes(status);
- });
- const recentFinals=[...sortedMatches].reverse().filter(m=>['final','complete','completed'].includes(String(m.status).toLowerCase()));
+ const matchTime=(m:Match)=>new Date(m.kickoff).getTime();
+ const statusOf=(m:Match)=>{
+  const t=matchTime(m);
+  const dbStatus=String(m.status||'').toLowerCase();
+  if(t<=now && now<t+FOUR_HOURS && !['final','complete','completed'].includes(dbStatus))return 'live';
+  if(now>=t+FOUR_HOURS || ['final','complete','completed'].includes(dbStatus))return 'final';
+  return 'scheduled';
+ };
+ const live=sortedMatches.filter(m=>statusOf(m)==='live');
+ const upcoming=sortedMatches.filter(m=>statusOf(m)==='scheduled');
+ const recentFinals=[...sortedMatches].reverse().filter(m=>statusOf(m)==='final');
  const featured=live[0]||upcoming[0]||recentFinals[0];
  const board=useMemo(()=>[...players].sort((a,b)=>(b.points||0)-(a.points||0)),[players]);
 
@@ -111,7 +116,7 @@ export default function Home(){
   </header>
 
   <section className="live">
-   <div className="tag">{featured?.status==='live'?'LIVE NOW':'NEXT UP'}</div>
+   <div className="tag">{featured&&statusOf(featured)==='live'?'LIVE NOW':featured&&statusOf(featured)==='final'?'FINAL':'NEXT UP'}</div>
    {featured?<>
     <div className="teams">
      <div><span>{featured.flag_a}</span><b>{featured.team_a}</b><strong>{featured.score_a??0}</strong></div>
@@ -151,7 +156,7 @@ export default function Home(){
      const mine=me?picks.find(p=>p.participant_id===me.id&&p.match_id===m.id):undefined;
      return <div className="match" key={m.id}>
       <b>{m.flag_a} {m.team_a} {m.score_a}-{m.score_b} {m.flag_b} {m.team_b}</b>
-      <small>{m.round} • {m.status} • {m.kickoff}</small>
+      <small>{m.round} • {statusOf(m)} • {m.kickoff}</small>
       <div><button className={mine?.selected_team===m.team_a?'sel':''} onClick={()=>pick(m,m.team_a)}>{m.team_a}</button><button className={mine?.selected_team===m.team_b?'sel':''} onClick={()=>pick(m,m.team_b)}>{m.team_b}</button></div>
      </div>
     })}</div>
