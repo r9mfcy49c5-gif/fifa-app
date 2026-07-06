@@ -43,12 +43,15 @@ export default function Home(){
  },[]);
 
  const now=Date.now();
- const today=new Date().toISOString().slice(0,10);
- const isToday=(m:Match)=>String(m.kickoff||'').slice(0,10)===today;
- const isFuture=(m:Match)=>new Date(m.kickoff).getTime()>=now-1000*60*30;
- const live=matches.filter(m=>m.status==='live'&&isToday(m));
- const upcoming=matches.filter(m=>m.status==='scheduled'&&isFuture(m));
- const featured=live[0]||upcoming[0];
+ const sortedMatches=[...matches].sort((a,b)=>new Date(a.kickoff).getTime()-new Date(b.kickoff).getTime());
+ const live=sortedMatches.filter(m=>String(m.status).toLowerCase()==='live');
+ const upcoming=sortedMatches.filter(m=>{
+  const t=new Date(m.kickoff).getTime();
+  const status=String(m.status).toLowerCase();
+  return t>=now-1000*60*45 && !['final','complete','completed'].includes(status);
+ });
+ const recentFinals=[...sortedMatches].reverse().filter(m=>['final','complete','completed'].includes(String(m.status).toLowerCase()));
+ const featured=live[0]||upcoming[0]||recentFinals[0];
  const board=useMemo(()=>[...players].sort((a,b)=>(b.points||0)-(a.points||0)),[players]);
 
  async function savePlayer(){
@@ -145,7 +148,7 @@ export default function Home(){
    </>:<p>No matches loaded.</p>}
   </section>
 
-  <section className="ticker">⚡ {live.length?live.map(m=>`${m.team_a} ${m.score_a}-${m.score_b} ${m.team_b}`).join('  •  '):upcoming.length?`Next: ${upcoming[0].team_a} vs ${upcoming[0].team_b} • ${upcoming[0].kickoff}`:'No live or upcoming match loaded.'}</section>
+  <section className="ticker">⚡ {live.length?`LIVE: ${live.map(m=>`${m.team_a} ${m.score_a}-${m.score_b} ${m.team_b}`).join('  •  ')}`:upcoming.length?`NEXT GAME: ${upcoming[0].team_a} vs ${upcoming[0].team_b} • ${upcoming[0].kickoff}`:'No live or upcoming match loaded.'}</section>
 
   <div className="grid">
    <section className="card">
