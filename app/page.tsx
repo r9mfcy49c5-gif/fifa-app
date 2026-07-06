@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase } from '@/lib/supabase';
 
-type Player={id:string;first_name:string;last_name:string;team:string;flag:string;points?:number;wins?:number;losses?:number;phone?:string};
+type Player={id:string;first_name:string;last_name:string;team:string;flag:string;points?:number;wins?:number;losses?:number};
 type Match={id:string;round:string;kickoff:string;team_a:string;team_b:string;flag_a:string;flag_b:string;score_a:number;score_b:number;status:string;winner?:string|null;minute?:number;extra_time?:number;venue?:string;highlights_url?:string};
 type Pick={id?:string;participant_id:string;match_id:string;selected_team:string};
 
@@ -13,17 +13,17 @@ export default function Home(){
  const [players,setPlayers]=useState<Player[]>([]);
  const [matches,setMatches]=useState<Match[]>([]);
  const [picks,setPicks]=useState<Pick[]>([]);
- const [me,setMe]=useState<Player|null>(null);
- const [status,setStatus]=useState('');
  const [chat,setChat]=useState<any[]>([]);
+ const [me,setMe]=useState<Player|null>(null);
  const [msg,setMsg]=useState('');
- const [form,setForm]=useState({first_name:'',last_name:'',phone:'',team:'Brazil',flag:'🇧🇷'});
+ const [status,setStatus]=useState('');
+ const [form,setForm]=useState({first_name:'',last_name:'',team:'Brazil',flag:'🇧🇷'});
 
  async function load(){
   const {data:p}=await supabase.from('participants').select('*').order('points',{ascending:false});
   const {data:m}=await supabase.from('wc_matches').select('*').order('kickoff',{ascending:true});
   const {data:k}=await supabase.from('match_picks').select('*');
-  const {data:c}=await supabase.from('fan_messages').select('*').order('created_at',{ascending:false}).limit(30);
+  const {data:c}=await supabase.from('fan_messages').select('*').order('created_at',{ascending:false}).limit(20);
   setPlayers((p||[]) as Player[]);
   setMatches((m||[]) as Match[]);
   setPicks((k||[]) as Pick[]);
@@ -33,7 +33,7 @@ export default function Home(){
  useEffect(()=>{
   load();
   const timer=setInterval(load,1500);
-  const ch=supabase.channel('lytle-lemon-live')
+  const ch=supabase.channel('broadcast-edition')
    .on('postgres_changes',{event:'*',schema:'public',table:'participants'},load)
    .on('postgres_changes',{event:'*',schema:'public',table:'wc_matches'},load)
    .on('postgres_changes',{event:'*',schema:'public',table:'match_picks'},load)
@@ -42,61 +42,22 @@ export default function Home(){
   return()=>{clearInterval(timer);supabase.removeChannel(ch)}
  },[]);
 
- const now=Date.now();
- const FOUR_HOURS=1000*60*60*4;
- const sortedMatches=[...matches].sort((a,b)=>new Date(a.kickoff).getTime()-new Date(b.kickoff).getTime());
- const matchTime=(m:Match)=>new Date(m.kickoff).getTime();
- const statusOf=(m:Match)=>{
-  const t=matchTime(m);
-  const dbStatus=String(m.status||'').toLowerCase();
-  if(t<=now && now<t+FOUR_HOURS && !['final','complete','completed'].includes(dbStatus))return 'live';
-  if(now>=t+FOUR_HOURS || ['final','complete','completed'].includes(dbStatus))return 'final';
-  return 'scheduled';
- };
- const live=sortedMatches.filter(m=>statusOf(m)==='live');
- const upcoming=sortedMatches.filter(m=>statusOf(m)==='scheduled');
- const recentFinals=[...sortedMatches].reverse().filter(m=>statusOf(m)==='final');
- const featured=live[0]||upcoming[0]||recentFinals[0];
+ const live=matches.filter(m=>m.status==='live');
+ const upcoming=matches.filter(m=>m.status==='scheduled');
+ const featured=live[0]||upcoming[0]||matches[0];
  const board=useMemo(()=>[...players].sort((a,b)=>(b.points||0)-(a.points||0)),[players]);
 
  async function savePlayer(){
   if(!form.first_name.trim())return setStatus('Enter first name.');
-  const player_code=`${form.first_name.trim().toUpperCase()}-${Math.floor(1000+Math.random()*9000)}`;
-  const {data,error}=await supabase.from('participants').insert({...form,player_code}).select().single();
+  const {data,error}=await supabase.from('participants').insert(form).select().single();
   if(error)return setStatus(error.message);
   setMe(data as Player); setStatus('Player saved. Make your picks.');
   await load();
  }
 
- async function findPlayer(){
-  let q=supabase.from('participants').select('*').limit(1);
-  if(form.phone.trim()){
-   q=q.eq('phone',form.phone.trim());
-  }else{
-   if(!form.first_name.trim())return setStatus('Enter phone or first name.');
-   q=q.ilike('first_name',form.first_name.trim());
-   if(form.last_name.trim())q=q.ilike('last_name',form.last_name.trim());
-  }
-  const {data,error}=await q;
-  if(error)return setStatus(error.message);
-  const found=data?.[0] as Player|undefined;
-  if(!found)return setStatus('No existing player found. Check name or phone.');
-  setMe(found);
-  setForm({
-   first_name:found.first_name||'',
-   last_name:found.last_name||'',
-   phone:found.phone||'',
-   team:found.team||'Brazil',
-   flag:found.flag||'🇧🇷'
-  });
-  setStatus(`Loaded ${found.first_name}. Your old picks are back.`);
-  await load();
- }
-
- 
- async function pick(m:Match,team:string){
-  if(!me)return setStatus('Save player first.');
-  await supabase.from('match_picks').upsert({participant_id:me.id,match_id:m.id,selected_team:team},{onConflict:'participant_id,match_id'});
+ async function savePick(team:string){
+  if(!me||!featured)return setStatus('Save player first.');
+  await supabase.from('match_picks').upsert({participant_id:me.id,match_id:featured.id,selected_team:team},{onConflict:'participant_id,match_id'});
   setStatus(`Pick saved: ${team}`);
   await load();
  }
@@ -108,72 +69,73 @@ export default function Home(){
   await load();
  }
 
- return <main className="stage">
-  <header className="top">
-   <div className="tiny">Corby&apos;s Workshop LLC Presents</div>
-   <h1>Lytle Lemon FIFA World Cup Live</h1>
-   <div className="sub">One screen. Live family picks. Big-game energy.</div>
+ const myPick=me&&featured?picks.find(p=>p.participant_id===me.id&&p.match_id===featured.id):undefined;
+
+ return <main className="screen">
+  <header className="mast">
+   <div className="workshop"><small>PRESENTED BY</small><b>CORBY & SHANNON’S</b><em>Workshop</em></div>
+   <div className="title"><span>LYTLE LEMON</span><h1>FIFA WORLD CUP <i>LIVE</i></h1><p>FAMILY • COMPETITION • MEMORIES</p></div>
+   <div className="vegas">VEGAS <i>LIVE</i><small>SERVICE • FAMILY • FOOTBALL</small></div>
   </header>
 
-  <section className="live">
-   <div className="tag">{featured&&statusOf(featured)==='live'?'LIVE NOW':featured&&statusOf(featured)==='final'?'FINAL':'NEXT UP'}</div>
-   {featured?<>
-    <div className="teams">
-     <div><span>{featured.flag_a}</span><b>{featured.team_a}</b><strong>{featured.score_a??0}</strong></div>
-     <em>VS</em>
-     <div><span>{featured.flag_b}</span><b>{featured.team_b}</b><strong>{featured.score_b??0}</strong></div>
-    </div>
-    <div className="clock">⏱ {featured.minute||0}&apos; {featured.extra_time?<i>+{featured.extra_time}</i>:null}</div>
-    <p>{featured.round} • {featured.kickoff} {featured.venue?`• ${featured.venue}`:''}</p>
-    {featured.highlights_url&&<a href={featured.highlights_url} target="_blank">🎥 Highlights</a>}
-   </>:<p>No matches loaded.</p>}
-  </section>
+  <section className="ticker"><b>LIVE TICKER</b><span>{live.length?live.map(m=>`⚽ ${m.flag_a} ${m.team_a} ${m.score_a}-${m.score_b} ${m.flag_b} ${m.team_b} ${m.minute||''}'`).join('  ⚡  '):'⚡ No live match marked yet. Admin can set one live.'}</span></section>
 
-  <section className="ticker">⚡ {live.length?`LIVE: ${live.map(m=>`${m.team_a} ${m.score_a}-${m.score_b} ${m.team_b}`).join('  •  ')}`:upcoming.length?`NEXT GAME: ${upcoming[0].team_a} vs ${upcoming[0].team_b} • ${upcoming[0].kickoff}`:'No live or upcoming match loaded.'}</section>
+  <div className="layout">
+   <aside className="panel left">
+    <h2>🏆 TOP OF THE TABLE</h2>
+    <div className="head"><span>RANK</span><span>PLAYER</span><span>PTS</span></div>
+    {board.slice(0,8).map((p,i)=><div className="rank" key={p.id}><b>{i+1}</b><span>{p.flag} {p.first_name}</span><strong>{p.points||0}</strong></div>)}
+   </aside>
 
-  <div className="grid">
-   <section className="card">
-    <h2>🏆 Leaderboard</h2>
-    {board.map((p,i)=><div className="row" key={p.id}><span>#{i+1} {p.flag} {p.first_name} {p.last_name}<small>{p.team} • W {p.wins||0} L {p.losses||0}</small></span><b>{p.points||0}</b></div>)}
+   <section className="mainEvent">
+    <div className="liveTag">🔴 {featured?.status==='live'?'LIVE NOW':'NEXT UP'}</div>
+    {featured ? <>
+     <h2>{featured.round}</h2>
+     <div className="score">
+      <div><span>{featured.flag_a}</span><b>{featured.team_a}</b></div>
+      <strong>{featured.score_a??0} - {featured.score_b??0}</strong>
+      <div><span>{featured.flag_b}</span><b>{featured.team_b}</b></div>
+     </div>
+     <div className="clock">{featured.minute||0}:00 {featured.extra_time?<i>+{featured.extra_time}</i>:null}</div>
+     <p className="venue">📍 {featured.venue||'World Cup Stadium'} • {featured.kickoff}</p>
+     {featured.highlights_url&&<a className="highlight" href={featured.highlights_url} target="_blank">🎥 WATCH HIGHLIGHTS</a>}
+
+     <div className="pickBox">
+      <h3>⚡ MAKE YOUR PICKS</h3>
+      <button className={myPick?.selected_team===featured.team_a?'sel':''} onClick={()=>savePick(featured.team_a)}>{featured.team_a}</button>
+      <span>VS</span>
+      <button className={myPick?.selected_team===featured.team_b?'sel':''} onClick={()=>savePick(featured.team_b)}>{featured.team_b}</button>
+     </div>
+    </> : <p>No matches loaded yet.</p>}
    </section>
 
-   <section className="card">
-    <h2>👤 Join / Update</h2>
+   <aside className="panel right">
+    <h2>💬 FAN ZONE</h2>
+    <div className="chat">{chat.map(c=><p key={c.id}><b>{c.player_name}</b><span>{c.message}</span></p>)}</div>
+    <div className="send"><input placeholder="Type a message..." value={msg} onChange={e=>setMsg(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')sendChat()}}/><button onClick={sendChat}>➤</button></div>
+   </aside>
+
+   <aside className="panel lowerLeft">
+    <h2>⚽ LIVE & UPCOMING</h2>
+    {[...live,...upcoming].slice(0,6).map(m=><div className="game" key={m.id}><b>{m.status==='live'?'LIVE':m.kickoff}</b><span>{m.flag_a} {m.team_a}</span><strong>{m.score_a}-{m.score_b}</strong><span>{m.flag_b} {m.team_b}</span></div>)}
+   </aside>
+
+   <section className="stats">
+    <h2>VEGAS LIVE STATS</h2>
+    <div><article><b>{matches.length}</b><span>Total Matches</span></article><article><b>{picks.length}</b><span>Total Picks</span></article><article><b>{players.length}</b><span>Players</span></article></div>
+    <p>Stay Locked In! SERVICE • FAMILY • FOOTBALL</p>
+   </section>
+
+   <aside className="panel join">
+    <h2>👤 JOIN / UPDATE</h2>
     <input placeholder="First name" value={form.first_name} onChange={e=>setForm({...form,first_name:e.target.value})}/>
     <input placeholder="Last name" value={form.last_name} onChange={e=>setForm({...form,last_name:e.target.value})}/>
-    <input placeholder="Phone optional" value={form.phone} onChange={e=>setForm({...form,phone:e.target.value})}/>
-    <select value={form.team} onChange={e=>{const t=TEAMS.find(x=>x[0]===e.target.value)!;setForm({...form,team:t[0],flag:t[1]})}}>
-     {TEAMS.map(t=><option key={t[0]} value={t[0]}>{t[1]} {t[0]}</option>)}
-    </select>
-    <button onClick={findPlayer}>Find My Picks</button>
-    <button onClick={savePlayer}>Save New Player</button>
-    <p className="status">{status}</p>
-   </section>
-
-   <section className="card wide">
-    <h2>⚽ Pick The Rest Of The Way</h2>
-    <p className="status">Final games are locked. Upcoming games stay open.</p>
-    <div className="matches">{sortedMatches.filter(m=>statusOf(m)!=='final').map(m=>{
-     const mine=me?picks.find(p=>p.participant_id===me.id&&p.match_id===m.id):undefined;
-     return <div className="match" key={m.id}>
-      <b>{m.flag_a} {m.team_a} {m.score_a}-{m.score_b} {m.flag_b} {m.team_b}</b>
-      <small>{m.round} • {statusOf(m)} • {m.kickoff}</small>
-      <div>
-       <button className={mine?.selected_team===m.team_a?'sel':''} onClick={()=>pick(m,m.team_a)}>{m.team_a}</button>
-       <button className={mine?.selected_team===m.team_b?'sel':''} onClick={()=>pick(m,m.team_b)}>{m.team_b}</button>
-      </div>
-      {mine?<small>✅ Your pick: {mine.selected_team}</small>:<small>Pick still needed</small>}
-     </div>
-    })}</div>
-   </section>
-
-   <section className="card wide">
-    <h2>💬 Fan Zone</h2>
-    <div className="chat">{chat.map(c=><p key={c.id}><b>{c.player_name}:</b> {c.message}</p>)}</div>
-    <div className="chatSend"><input placeholder="Talk friendly trash..." value={msg} onChange={e=>setMsg(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')sendChat()}}/><button onClick={sendChat}>Send</button></div>
-   </section>
+    <select value={form.team} onChange={e=>{const t=TEAMS.find(x=>x[0]===e.target.value)!;setForm({...form,team:t[0],flag:t[1]})}}>{TEAMS.map(t=><option key={t[0]} value={t[0]}>{t[1]} {t[0]}</option>)}</select>
+    <button onClick={savePlayer}>SAVE PLAYER</button>
+    <small>{status}</small>
+   </aside>
   </div>
 
-  <footer>Built by Corby&apos;s Workshop LLC • v1.5 Gold</footer>
+  <footer>BUILT IN CORBY & SHANNON’S WORKSHOP • CW</footer>
  </main>
 }
