@@ -60,6 +60,31 @@ export default function Home(){
   await load();
  }
 
+ async function findPlayer(){
+  let q=supabase.from('participants').select('*').limit(1);
+  if(form.phone.trim()){
+   q=q.eq('phone',form.phone.trim());
+  }else{
+   if(!form.first_name.trim())return setStatus('Enter phone or first name.');
+   q=q.ilike('first_name',form.first_name.trim());
+   if(form.last_name.trim())q=q.ilike('last_name',form.last_name.trim());
+  }
+  const {data,error}=await q;
+  if(error)return setStatus(error.message);
+  const found=data?.[0] as Player|undefined;
+  if(!found)return setStatus('No existing player found. Check name or phone.');
+  setMe(found);
+  setForm({
+   first_name:found.first_name||'',
+   last_name:found.last_name||'',
+   phone:found.phone||'',
+   team:found.team||'Brazil',
+   flag:found.flag||'🇧🇷'
+  });
+  setStatus(`Loaded ${found.first_name}. Your old picks are back.`);
+  await load();
+ }
+
  async function pick(m:Match,team:string){
   if(!me)return setStatus('Save player first.');
   await supabase.from('match_picks').upsert({participant_id:me.id,match_id:m.id,selected_team:team},{onConflict:'participant_id,match_id'});
@@ -111,7 +136,8 @@ export default function Home(){
     <select value={form.team} onChange={e=>{const t=TEAMS.find(x=>x[0]===e.target.value)!;setForm({...form,team:t[0],flag:t[1]})}}>
      {TEAMS.map(t=><option key={t[0]} value={t[0]}>{t[1]} {t[0]}</option>)}
     </select>
-    <button onClick={savePlayer}>Save Player</button>
+    <button onClick={findPlayer}>Find My Picks</button>
+    <button onClick={savePlayer}>Save New Player</button>
     <p className="status">{status}</p>
    </section>
 
