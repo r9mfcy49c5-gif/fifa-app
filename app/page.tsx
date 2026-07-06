@@ -17,6 +17,8 @@ export default function Home(){
  const [me,setMe]=useState<Player|null>(null);
  const [msg,setMsg]=useState('');
  const [status,setStatus]=useState('');
+ const [selectedPlayerId,setSelectedPlayerId]=useState('');
+ const [notifications,setNotifications]=useState(false);
  const [form,setForm]=useState({first_name:'',last_name:'',team:'Brazil',flag:'🇧🇷'});
 
  async function load(){
@@ -47,6 +49,20 @@ export default function Home(){
  const featured=live[0]||upcoming[0]||matches[0];
  const board=useMemo(()=>[...players].sort((a,b)=>(b.points||0)-(a.points||0)),[players]);
 
+ function loginExisting(id:string){
+  setSelectedPlayerId(id);
+  const found=players.find(p=>p.id===id)||null;
+  setMe(found);
+  if(found)setStatus(`Logged in as ${found.first_name}.`);
+ }
+
+ async function enableNotifications(){
+  if(!('Notification' in window)){setStatus('Notifications are not supported on this browser.');return;}
+  const permission=await Notification.requestPermission();
+  setNotifications(permission==='granted');
+  setStatus(permission==='granted'?'Notifications enabled.':'Notifications not enabled.');
+ }
+
  async function savePlayer(){
   if(!form.first_name.trim())return setStatus('Enter first name.');
   const {data,error}=await supabase.from('participants').insert(form).select().single();
@@ -73,7 +89,7 @@ export default function Home(){
 
  return <main className="screen">
   <header className="mast">
-   <div className="workshop"><small>PRESENTED BY</small><b>CORBY & SHANNON’S</b><em>Workshop</em></div>
+   <div className="workshop"><small>PRESENTED BY</small><b>CORBY’S WORKSHOP LLC</b><em>Workshop</em></div>
    <div className="title"><span>LYTLE LEMON</span><h1>FIFA WORLD CUP <i>LIVE</i></h1><p>FAMILY • COMPETITION • MEMORIES</p></div>
    <div className="vegas">VEGAS <i>LIVE</i><small>SERVICE • FAMILY • FOOTBALL</small></div>
   </header>
@@ -127,7 +143,13 @@ export default function Home(){
    </section>
 
    <aside className="panel join">
-    <h2>👤 JOIN / UPDATE</h2>
+    <h2>👤 LOGIN / JOIN</h2>
+    <select value={selectedPlayerId} onChange={e=>loginExisting(e.target.value)}>
+     <option value="">Log in as existing player...</option>
+     {players.map(p=><option key={p.id} value={p.id}>{p.flag} {p.first_name} {p.last_name}</option>)}
+    </select>
+    <button onClick={enableNotifications}>{notifications?'🔔 Notifications On':'🔕 Enable Notifications'}</button>
+    <div className="miniStatus">{me?`Active player: ${me.flag} ${me.first_name} ${me.last_name}`:'No active player yet.'}</div>
     <input placeholder="First name" value={form.first_name} onChange={e=>setForm({...form,first_name:e.target.value})}/>
     <input placeholder="Last name" value={form.last_name} onChange={e=>setForm({...form,last_name:e.target.value})}/>
     <select value={form.team} onChange={e=>{const t=TEAMS.find(x=>x[0]===e.target.value)!;setForm({...form,team:t[0],flag:t[1]})}}>{TEAMS.map(t=><option key={t[0]} value={t[0]}>{t[1]} {t[0]}</option>)}</select>
@@ -136,6 +158,6 @@ export default function Home(){
    </aside>
   </div>
 
-  <footer>BUILT IN CORBY & SHANNON’S WORKSHOP • CW</footer>
+  <footer>BUILT IN CORBY’S WORKSHOP LLC WORKSHOP • CW</footer>
  </main>
 }
