@@ -34,3 +34,21 @@ footer{margin-top:36px;color:#786b50;text-align:center}
  .nav{align-items:flex-start;gap:16px;flex-direction:column}
  .teams strong{font-size:60px}
 }
+
+/* PROFESSIONAL LIVE DASHBOARD */
+.dashboard{display:grid;grid-template-columns:320px 320px 1fr;gap:16px;margin-top:24px}
+.panel{border:1px solid #302817;border-radius:18px;padding:20px;background:#111}
+.panel h2{margin-top:0;color:#e8d8a8}
+.rank{display:grid;grid-template-columns:36px 1fr auto;gap:10px;padding:10px 0;border-bottom:1px solid #2a2a2a}
+.rank b,.rank strong{color:#d6b45c}
+.profile{margin-top:14px;padding:16px;border:1px solid #4b3d22;border-radius:14px;background:#171717}
+.profile b,.profile span{display:block}
+.profile span{color:#aaa;margin-top:4px}
+.picks{grid-column:3}
+.pickRow{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;padding:12px;border-bottom:1px solid #252525}
+.pickRow small{display:block;color:#aaa;margin-top:4px}
+.pickRow button{padding:10px 14px;border-radius:10px;border:1px solid #4b3d22;background:#171717;color:#e8d8a8;font-weight:800}
+.pickRow button.selected{background:#d6b45c;color:#080808}
+.pickRow button:disabled{opacity:.45}
+.muted{color:#aaa}
+@media(max-width:1100px){.dashboard{grid-template-columns:1fr}.picks{grid-column:auto}.pickRow{grid-template-columns:1fr}}
